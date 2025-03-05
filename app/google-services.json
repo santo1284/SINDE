@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1022521936843",
+    "project_id": "sindesparches-1ebbd",
+    "storage_bucket": "sindesparches-1ebbd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1022521936843:android:a5e33ea1b812109351844e",
+        "android_client_info": {
+          "package_name": "com.santiago.sindesparches"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1022521936843-vkfuniooch6ndkpvdc52apjs9ve752c3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.santiago.sindesparches",
+            "certificate_hash": "0365027d2747a69225e5f47ca526544e7ae8f4a4"
+          }
+        },
+        {
+          "client_id": "1022521936843-kmoousfn5s5ieohtapq7tolgjabgugm4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEJtE6QCsXOEUW4oc20eufIj9p79WrVI4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1022521936843-kmoousfn5s5ieohtapq7tolgjabgugm4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
