@@ -12,9 +12,10 @@ firebaseBOM="33.9.0"
 service ="4.4.2"
 crashlytics="3.0.3"
 navigationCompose = "2.8.7"
-analytics = "22.2.0"
 animation="6.1.0"
 firebaseStorageKtx = "21.0.1"
+composeMaterial = "1.4.1"
+
 
 
 [libraries]
@@ -37,6 +38,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBOM" }
 firebase-crashlytics= {module ="com.google.firebase:firebase-crashlytics"}
 firebase-auth= {module ="com.google.firebase:firebase-auth-ktx"}
+firebase-storage= {module ="com.google.firebase:firebase-storage"}
 firebase-analytics= {module ="com.google.firebase:firebase-analytics"}
 firebase-firestore= {module ="com.google.firebase:firebase-firestore"}
 animation={module="com.airbnb.android:lottie-compose", version.ref="animation"}
@@ -44,6 +46,7 @@ animation={module="com.airbnb.android:lottie-compose", version.ref="animation"}
 
 androidx-navigation-compose={module = "androidx.navigation:navigation-compose", version.ref= "navigationCompose"}
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
+androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -51,5 +54,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "service" }
 crashlytics = { id = "com.google.firebase.crashlytics", version.ref="crashlytics" }
-analytics = { id = "com.google.firebase.analytics", version.ref="analytics" }
 

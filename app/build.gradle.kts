@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.santiago.sindesparches"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -44,9 +44,11 @@ android {
 dependencies {
 
     implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.storage)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.analytics)
     implementation("io.coil-kt:coil-compose:2.2.2")
 
     implementation(libs.animation)
@@ -63,6 +65,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.firebase.storage.ktx)
+    implementation(libs.androidx.compose.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

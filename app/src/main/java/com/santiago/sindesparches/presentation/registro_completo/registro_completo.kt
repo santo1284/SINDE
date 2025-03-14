@@ -1,4 +1,4 @@
-package com.santiago.sindesparches.presentation.estado_registro
+package com.santiago.sindesparches.presentation.registro_completo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,12 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
-import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.azul_comienzo
@@ -35,11 +35,11 @@ import com.santiago.sindesparches.ui.theme.boton_texto
 import com.santiago.sindesparches.ui.theme.white
 
 @Composable
-fun estado_registro(navigateToperfil: () -> Unit = {} ,usuario:String){
-
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.succes))
 
 
+fun registro_completo(nombre: String,
+                      navigateToHome: ()-> Unit = {}  ){
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.registro))
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,20 +62,20 @@ fun estado_registro(navigateToperfil: () -> Unit = {} ,usuario:String){
             Spacer(modifier = Modifier.weight(0.2f))
 
             Text(
-                text = "Hola $usuario",
+                text = "Bienvenido $nombre",
                 color = white,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
-
             LottieAnimation(
                 composition = composition,
                 iterations = LottieConstants.IterateForever,
                 modifier = Modifier.size(150.dp)
             )
+
             Text(
-                text = "Su registro fue exitoso, comenzaremos a configurar tu perfil, no te preocupes solo es un paso mas ",
+                text = "Tu perfil se a creado con exito, espero encuentres tu plan y recuerda  vive sin desparche",
                 color = white,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
@@ -89,7 +89,7 @@ fun estado_registro(navigateToperfil: () -> Unit = {} ,usuario:String){
         Spacer(modifier = Modifier.weight(0.5f))
 
         Button(
-            onClick = { navigateToperfil() },
+            onClick = { navigateToHome() },
             modifier = Modifier
                 .width(150.dp)
                 .height(50.dp)
@@ -100,7 +100,5 @@ fun estado_registro(navigateToperfil: () -> Unit = {} ,usuario:String){
         Spacer(modifier = Modifier.weight(1f))
 
     }
+
 }
-
-
-
