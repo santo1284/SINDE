@@ -50,7 +50,6 @@ import com.santiago.sindesparches.ui.theme.boton_texto
 import com.santiago.sindesparches.ui.theme.facebook
 import com.santiago.sindesparches.ui.theme.gmail
 import com.santiago.sindesparches.ui.theme.white
-import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
 
 @Composable
 
@@ -176,7 +175,6 @@ fun InicialScreen(auth: FirebaseAuth,
                             Log.i("santi login", "correcto")
                             navigatehome()
                         } else {
-                            //mostrar un mensaje de error
                             errorMessage = "correo o contraseña incorrectos"
 
                             Log.i("santi login", "incorrecto")

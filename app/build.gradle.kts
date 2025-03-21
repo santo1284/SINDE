@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation("io.coil-kt:coil-compose:2.2.2")
 
+
     implementation(libs.animation)
 
     implementation(libs.firebase.analytics)

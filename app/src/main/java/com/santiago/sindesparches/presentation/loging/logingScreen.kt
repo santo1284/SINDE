@@ -112,26 +112,26 @@ fun logingScreen(auth: FirebaseAuth,
             OutlinedTextField(
                 value = usuario,
                 onValueChange = { usuario = it },
-                placeholder = { Text("USUARIO", color = white) },
+                placeholder = { Text("USUARIO", color = black) },
                 singleLine = true,
                 textStyle = TextStyle(
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 20.sp,
                 ),
                 leadingIcon = {
                     Icon(
                         painter = painterResource(id = R.drawable.bxs_user),
                         contentDescription = "",
-                        tint = white
+                        tint = if (usuario.isEmpty()) black else white
                     )
                 },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = boton,
                     unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = white,
-                    focusedIndicatorColor = boton,
+                    unfocusedIndicatorColor = boton,
+                    focusedIndicatorColor = white,
                     focusedTextColor = white,
-                    unfocusedTextColor = black,
+                    unfocusedTextColor = white,
                     cursorColor = white,
                 ),
                 shape = RoundedCornerShape(40.dp)
@@ -141,26 +141,26 @@ fun logingScreen(auth: FirebaseAuth,
             OutlinedTextField(
                 value = correo,
                 onValueChange = { correo = it },
-                placeholder = { Text("CORREO", color = white) },
+                placeholder = { Text("CORREO", color = black) },
                 singleLine = true,
                 textStyle = TextStyle(
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 20.sp,
                 ),
                 leadingIcon = {
                     Icon(
                         painter = painterResource(id = R.drawable.bxs_envelope),
                         contentDescription = "",
-                        tint = white
+                        tint = if (correo.isEmpty()) black else white
                     )
                 },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = boton,
                     unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = white,
-                    focusedIndicatorColor = boton,
+                    unfocusedIndicatorColor = boton,
+                    focusedIndicatorColor = white,
                     focusedTextColor = white,
-                    unfocusedTextColor = black,
+                    unfocusedTextColor = white,
                     cursorColor = white
                 ),
                 shape = RoundedCornerShape(40.dp)
@@ -172,10 +172,10 @@ fun logingScreen(auth: FirebaseAuth,
             OutlinedTextField(
                 value = password_registro,
                 onValueChange = { password_registro = it },
-                placeholder = { Text("CONTRASEÑA", color = white) },
+                placeholder = { Text("CONTRASEÑA", color = black) },
                 singleLine = true,
                 textStyle = TextStyle(
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 20.sp,
                 ),
                 visualTransformation = PasswordVisualTransformation(),
@@ -183,16 +183,16 @@ fun logingScreen(auth: FirebaseAuth,
                     Icon(
                         painter = painterResource(id = R.drawable.bxs_lock),
                         contentDescription = "",
-                        tint = white
+                        tint = if (password_registro.isEmpty()) black else white
                     )
                 },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = boton,
                     unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = white,
-                    focusedIndicatorColor = boton,
+                    unfocusedIndicatorColor = boton,
+                    focusedIndicatorColor = white,
                     focusedTextColor = white,
-                    unfocusedTextColor = black,
+                    unfocusedTextColor = white,
                     cursorColor = white
                 ),
                 shape = RoundedCornerShape(40.dp)
@@ -204,7 +204,7 @@ fun logingScreen(auth: FirebaseAuth,
             ) {
                 Checkbox(
                     checked = checked,
-                    onCheckedChange = { checked = it } // Se actualiza el estado al hacer clic
+                    onCheckedChange = { checked = it }
                 )
                 Text(
                     text = if (checked) "aceptaste terminos y condiciones"
@@ -236,7 +236,6 @@ fun logingScreen(auth: FirebaseAuth,
                                     navigateToEstadoRegistro(usuario)
 
                                 } else {
-                                    //mostrar un mensaje de error
                                     Log.i("santi login", "registro incorrecto")
                                     errorMessage = "usuaio no admitido"
 

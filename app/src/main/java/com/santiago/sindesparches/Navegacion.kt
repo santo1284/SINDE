@@ -25,7 +25,7 @@ fun Navegacion(navController: NavHostController,
         composable("inicio") {
             InicialScreen(auth = auth,
                 navigateToLoging = { navController.navigate("loging") },
-                navigatehome = { navController.navigate("perfil") })
+                navigatehome = { navController.navigate("home") })
         }
 
         composable("loging") {
@@ -35,13 +35,22 @@ fun Navegacion(navController: NavHostController,
         }
 
         composable("home") {
-            homeScreen()
+            homeScreen(auth = auth,
+                navigateToInicial = {
+                    navController.navigate("inicio") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
+            )
         }
+
+
 
         composable("estado_registro/{usuario}") { backStackEntry ->
             val usuario = backStackEntry.arguments?.getString("usuario") ?: ""
 
             estado_registro(
+                auth = auth,
                 usuario = usuario,
                 navigateToperfil = {
                     navController.navigate("perfil") {
@@ -50,6 +59,13 @@ fun Navegacion(navController: NavHostController,
                         }
                     }
 
+                },
+                onLogout = {
+                    navController.navigate("inicio") {
+                        popUpTo("estado_registro") {
+                            inclusive = true
+                        }
+                    }
                 }
             )
 
@@ -59,20 +75,35 @@ fun Navegacion(navController: NavHostController,
             PerfilScreen(auth = auth, db,
             navigate_registro_completo= {nombre->
                 navController.navigate("registro_completo/$nombre"){
-                    popUpTo("loging"){
+                    popUpTo("estado_registro"){
                         inclusive = true
                     }
                 }
-            })
+            },onLogout = {navController.navigate("inicio"){
+                    popUpTo("perfil"){
+                        inclusive = true
+                    }
+                }
+                })
+
         }
 
         composable("registro_completo/{nombre}") { backStackEntry ->
             val nombre = backStackEntry.arguments?.getString("nombre") ?: ""
             registro_completo(
+                auth = auth,
                 nombre = nombre,
                 navigateToHome = {
                     navController.navigate("home") {
-                        popUpTo("loging") {
+                        popUpTo("perfil") {
+                            inclusive = true
+                        }
+                    }
+                }
+                ,
+                navigateToLoging = {
+                    navController.navigate("inicio") {
+                        popUpTo("registro_completo") {
                             inclusive = true
                         }
                     }
