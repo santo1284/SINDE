@@ -10,6 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.facebook.FacebookSdk
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.splash_screen)
         super.onCreate(savedInstanceState)
+        FacebookSdk.sdkInitialize(applicationContext)
         analytics = Firebase.analytics
         auth= Firebase.auth
         db= Firebase.firestore
@@ -38,9 +40,11 @@ class MainActivity : ComponentActivity() {
             SinDesparchesTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) {
                     Navegacion(navControlller, auth, db)
+
                 }
             }
         }
     }
 }
+
 

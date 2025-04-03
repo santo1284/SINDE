@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.santiago.sindesparches.presentation.contraseña.DefinirContraseñaScreen
 import com.santiago.sindesparches.presentation.estado_registro.estado_registro
 import com.santiago.sindesparches.presentation.home.homeScreen
 import com.santiago.sindesparches.presentation.inicio.InicialScreen
@@ -22,10 +23,25 @@ fun Navegacion(navController: NavHostController,
                 db: FirebaseFirestore) {
 
     NavHost(navController = navController, startDestination = "inicio") {
+
         composable("inicio") {
-            InicialScreen(auth = auth,
-                navigateToLoging = { navController.navigate("loging") },
-                navigatehome = { navController.navigate("home") })
+            InicialScreen(navController, auth, db, navigatehome = {
+                navController.navigate("home")
+            }, navigatePerfil = {
+                navController.navigate("perfil")
+            }, navigateToLoging = {navController.navigate("loging")})
+
+        }
+
+        composable("definir_contrasena/{email}") { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            DefinirContraseñaScreen(email=email,auth=auth,onLogout = {
+                navController.navigate("inicio") {
+                    popUpTo("estado_registro") {
+                        inclusive = true
+                    }
+                }
+            }) { navController.navigate("estado_registro/$email") }
         }
 
         composable("loging") {
@@ -43,8 +59,6 @@ fun Navegacion(navController: NavHostController,
                 }
             )
         }
-
-
 
         composable("estado_registro/{usuario}") { backStackEntry ->
             val usuario = backStackEntry.arguments?.getString("usuario") ?: ""
@@ -112,6 +126,7 @@ fun Navegacion(navController: NavHostController,
             )
 
         }
+
 
     }
 }

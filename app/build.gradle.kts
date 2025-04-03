@@ -51,7 +51,15 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation("io.coil-kt:coil-compose:2.2.2")
 
+    implementation ("com.facebook.android:facebook-login:16.2.0")
+    implementation ("com.facebook.android:facebook-android-sdk:16.2.0")
 
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
+    implementation ("com.facebook.android:facebook-login:16.2.0")
+
+
+    implementation(libs.play.services.auth)
     implementation(libs.animation)
 
     implementation(libs.firebase.analytics)

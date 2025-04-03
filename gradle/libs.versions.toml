@@ -1,5 +1,5 @@
 [versions]
-agp = "8.8.1"
+agp = "8.8.2"
 kotlin = "2.0.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -15,7 +15,7 @@ navigationCompose = "2.8.7"
 animation="6.1.0"
 firebaseStorageKtx = "21.0.1"
 composeMaterial = "1.4.1"
-
+play-services-auth = "20.7.0"
 
 
 
@@ -43,6 +43,7 @@ firebase-storage= {module ="com.google.firebase:firebase-storage"}
 firebase-analytics= {module ="com.google.firebase:firebase-analytics"}
 firebase-firestore= {module ="com.google.firebase:firebase-firestore"}
 animation={module="com.airbnb.android:lottie-compose", version.ref="animation"}
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "play-services-auth" }
 
 
 androidx-navigation-compose={module = "androidx.navigation:navigation-compose", version.ref= "navigationCompose"}
