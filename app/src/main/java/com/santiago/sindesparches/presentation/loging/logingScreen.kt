@@ -126,13 +126,13 @@ fun logingScreen(auth: FirebaseAuth,
                     )
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = boton,
-                    unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = boton,
-                    focusedIndicatorColor = white,
+                    focusedContainerColor = boton_texto,
+                    unfocusedContainerColor = boton,
+                    unfocusedIndicatorColor = white,
+                    focusedIndicatorColor = boton,
                     focusedTextColor = white,
                     unfocusedTextColor = white,
-                    cursorColor = white,
+                    cursorColor = white
                 ),
                 shape = RoundedCornerShape(40.dp)
             )
@@ -155,10 +155,10 @@ fun logingScreen(auth: FirebaseAuth,
                     )
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = boton,
-                    unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = boton,
-                    focusedIndicatorColor = white,
+                    focusedContainerColor = boton_texto,
+                    unfocusedContainerColor = boton,
+                    unfocusedIndicatorColor = white,
+                    focusedIndicatorColor = boton,
                     focusedTextColor = white,
                     unfocusedTextColor = white,
                     cursorColor = white
@@ -187,10 +187,10 @@ fun logingScreen(auth: FirebaseAuth,
                     )
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = boton,
-                    unfocusedContainerColor = boton_texto,
-                    unfocusedIndicatorColor = boton,
-                    focusedIndicatorColor = white,
+                    focusedContainerColor = boton_texto,
+                    unfocusedContainerColor = boton,
+                    unfocusedIndicatorColor = white,
+                    focusedIndicatorColor = boton,
                     focusedTextColor = white,
                     unfocusedTextColor = white,
                     cursorColor = white
@@ -246,17 +246,17 @@ fun logingScreen(auth: FirebaseAuth,
                 modifier = Modifier
                     .width(150.dp)
                     .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = boton_texto)
+                colors = ButtonDefaults.buttonColors(containerColor = boton_iniciar)
             ) {
                 Text(
                     text = "REGISTRAR",
-                    color = black,
+                    color = white,
                     fontWeight = FontWeight.Normal
 
                 )
             }
 
-            Spacer(modifier = Modifier.weight(2f))
+            Spacer(modifier = Modifier.weight(3f))
         }
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -121,6 +122,7 @@ fun InicialScreen(
     // Función para procesar el usuario después de la autenticación
     // IMPORTANTE: Ahora es una función de nivel superior dentro del composable
     fun processUserAfterAuth(user: FirebaseUser?) {
+        // Verificar si el usuario es nulo
         if (user == null) {
             errorMessage = "Error: No se pudo obtener el usuario"
             isLoading = false
@@ -134,26 +136,33 @@ fun InicialScreen(
         val tieneContraseña = user.providerData.any { it.providerId == "password" }
 
         if (!tieneContraseña) {
-            Log.d("Navigation", "El usuario no tiene contraseña. Navegando a DefinirContraseña")
+            Log.d("Authentication", "Usuario sin contraseña. Redirigiendo a DefinirContraseña")
             isLoading = false
             navigateToDefinirContrasena(userEmail)
             return
         }
 
-        // 2. Revisar si el perfil está en Firestore
+        // 2. Verificar si el usuario existe en la colección "usuarios" (datos básicos)
+        // y en la colección "perfil" (datos completos)
+
         db.collection("perfil").document(uid).get()
-            .addOnSuccessListener { document ->
-                isLoading = false
-                if (document.exists()) {
-                    Log.d("Navigation", "Perfil encontrado en Firestore. Navegando a Home")
+            .addOnSuccessListener { perfilDocument ->
+                if (perfilDocument.exists() && perfilDocument.data?.isNotEmpty() == true) {
+                    // El usuario tiene perfil completo, navegar a Home
+
+                    Log.d("Navigation", "Perfil completo encontrado. Navegando a Home")
+                    isLoading = false
                     navigatehome()
                 } else {
-                    Log.d("Navigation", "Perfil NO encontrado en Firestore. Navegando a Perfil")
+                    // El usuario no tiene perfil completo, navegar a PerfilScreen
+
+                    Log.d("Navigation", "Perfil no encontrado o incompleto. Navegando a Perfil")
+                    isLoading = false
                     navigatePerfil()
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e("Firestore", "Error al obtener datos del usuario", exception)
+                Log.e("Firestore", "Error al verificar datos del usuario: ${exception.message}", exception)
                 errorMessage = "Error al acceder a los datos del perfil"
                 isLoading = false
             }
@@ -259,19 +268,20 @@ fun InicialScreen(
                 onDismissRequest = { forgotPasswordDialog = false },
                 title = { Text("Restablecer contraseña") },
                 text = {
-                    Column {
+                    Column{
                         Text("Ingresa tu correo electrónico para recibir instrucciones")
                         OutlinedTextField(
                             value = resetPasswordEmail,
                             onValueChange = { resetPasswordEmail = it },
-                            placeholder = { Text("Email") },
+                            placeholder = { Text("Correo") },
                             singleLine = true,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
                 },
                 confirmButton = {
-                    Button(onClick = {
+                    Button(colors = ButtonDefaults.buttonColors(containerColor = boton_iniciar),
+                        onClick = {
                         if (resetPasswordEmail.isNotEmpty()) {
                             auth.sendPasswordResetEmail(resetPasswordEmail)
                                 .addOnCompleteListener { task ->
@@ -291,7 +301,8 @@ fun InicialScreen(
                     }
                 },
                 dismissButton = {
-                    Button(onClick = { forgotPasswordDialog = false }) {
+                    Button(colors = ButtonDefaults.buttonColors(containerColor = boton_iniciar),
+                        onClick = { forgotPasswordDialog = false }) {
                         Text("Cancelar")
                     }
                 }
@@ -379,8 +390,8 @@ fun InicialScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.End,
+            modifier = Modifier .width(260.dp)
         ) {
             TextButton(
                 onClick = { forgotPasswordDialog = true },
@@ -390,7 +401,8 @@ fun InicialScreen(
                 Text(
                     text = "olvide mi contraseña",
                     color = white,
-                    fontWeight = FontWeight.Normal
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Left
                 )
             }
         }
@@ -401,16 +413,43 @@ fun InicialScreen(
                     errorMessage = "correo o contraseña vacios"
                 } else {
                     isLoading = true
-                    auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
-                        isLoading = false
-                        if (task.isSuccessful) {
-                            Log.i("santi login", "correcto")
-                            navigatehome()
-                        } else {
-                            errorMessage = "correo o contraseña incorrectos"
-                            Log.i("santi login", "incorrecto")
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                Log.i("santi login", "Autenticación correcta")
+                                // Obtenemos el usuario actual
+                                val user = auth.currentUser
+                                if (user != null) {
+                                    // Verificar si el usuario tiene datos en Firestore
+                                    val uid = user.uid
+                                    db.collection("perfil").document(uid).get()
+                                        .addOnSuccessListener { document ->
+                                            isLoading = false
+                                            if (document.exists() && document.data?.isNotEmpty() == true) {
+                                                // El usuario tiene perfil completo, navegar a Home
+                                                Log.i("santi login", "Perfil completo encontrado. Navegando a Home")
+                                                navigatehome()
+                                            } else {
+                                                // El usuario no tiene perfil completo, navegar a PerfilScreen
+                                                Log.i("santi login", "Perfil no encontrado. Navegando a Perfil")
+                                                navigatePerfil()
+                                            }
+                                        }
+                                        .addOnFailureListener { exception ->
+                                            isLoading = false
+                                            errorMessage = "Error al verificar datos del perfil"
+                                            Log.e("santi login", "Error al verificar perfil", exception)
+                                        }
+                                } else {
+                                    isLoading = false
+                                    errorMessage = "Error al obtener usuario"
+                                }
+                            } else {
+                                isLoading = false
+                                errorMessage = "correo o contraseña incorrectos"
+                                Log.i("santi login", "Autenticación incorrecta")
+                            }
                         }
-                    }
                 }
             },
             modifier = Modifier
@@ -556,6 +595,7 @@ fun InicialScreen(
         ) {
             Text(
                 text = "CREAR CUENTA",
+                fontSize = 20.sp,
                 color = white,
                 fontWeight = FontWeight.Normal
             )

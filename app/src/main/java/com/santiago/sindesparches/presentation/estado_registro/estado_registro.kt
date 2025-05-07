@@ -45,7 +45,8 @@ import com.santiago.sindesparches.ui.theme.white
 fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuario:String, onLogout: () -> Unit = {}){
 
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.succes))
-
+    val user = FirebaseAuth.getInstance().currentUser
+    val nombreUsuario = user?.displayName
     var showDialog by remember { mutableStateOf(false) }
     // Intercepta el botón de retroceso
     BackHandler {
@@ -96,7 +97,7 @@ fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuar
 
         Column(
             modifier = Modifier
-                .width(280.dp)
+                .width(290.dp)
                 .height(350.dp)
                 .background(color = boton_texto, shape = RoundedCornerShape(20.dp))
                 .border(2.dp, color = white, shape = RoundedCornerShape(20.dp)),
@@ -106,7 +107,7 @@ fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuar
             Spacer(modifier = Modifier.weight(0.2f))
 
             Text(
-                text = "Hola $usuario",
+                text = if(nombreUsuario != null) "Bienvenido \n $nombreUsuario" else "Bienvenido \n $usuario",
                 color = white,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,

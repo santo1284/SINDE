@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var db = Firebase.firestore
     private lateinit var analytics: FirebaseAnalytics
 
+
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.splash_screen)

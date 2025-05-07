@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation ("com.google.firebase:firebase-database-ktx")
     implementation(libs.firebase.analytics)
     implementation("io.coil-kt:coil-compose:2.2.2")
 
@@ -57,6 +58,7 @@ dependencies {
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
     implementation ("com.facebook.android:facebook-login:16.2.0")
+
 
 
     implementation(libs.play.services.auth)

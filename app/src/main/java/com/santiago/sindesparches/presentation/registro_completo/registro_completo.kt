@@ -98,7 +98,7 @@ fun registro_completo(auth: FirebaseAuth,
             Spacer(modifier = Modifier.weight(0.2f))
 
             Text(
-                text = "Bienvenido $nombre",
+                text = "Bienvenido \n $nombre",
                 color = white,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,

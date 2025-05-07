@@ -1,5 +1,7 @@
 package com.santiago.sindesparches
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -9,6 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.santiago.sindesparches.presentation.contraseña.DefinirContraseñaScreen
 import com.santiago.sindesparches.presentation.estado_registro.estado_registro
+import com.santiago.sindesparches.presentation.flash_plan.flash_plan
 import com.santiago.sindesparches.presentation.home.homeScreen
 import com.santiago.sindesparches.presentation.inicio.InicialScreen
 import com.santiago.sindesparches.presentation.loging.logingScreen
@@ -16,6 +19,7 @@ import com.santiago.sindesparches.presentation.perfil.PerfilScreen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
 
 
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 
 fun Navegacion(navController: NavHostController,
@@ -28,7 +32,7 @@ fun Navegacion(navController: NavHostController,
             InicialScreen(navController, auth, db, navigatehome = {
                 navController.navigate("home")
             }, navigatePerfil = {
-                navController.navigate("perfil")
+                navController.navigate("perfil/{usuario}")
             }, navigateToLoging = {navController.navigate("loging")})
 
         }
@@ -51,11 +55,25 @@ fun Navegacion(navController: NavHostController,
         }
 
         composable("home") {
-            homeScreen(auth = auth,
+
+            homeScreen(auth = auth, db,
                 navigateToInicial = {
                     navController.navigate("inicio") {
                         popUpTo("home") { inclusive = true }
                     }
+                },
+                navigateToFlashPlan = {
+                    navController.navigate("flash_plan") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable("flash_plan"){
+            flash_plan(auth = auth, db,
+                navigateToHome = {
+                    navController.navigate("home")
                 }
             )
         }
@@ -67,7 +85,7 @@ fun Navegacion(navController: NavHostController,
                 auth = auth,
                 usuario = usuario,
                 navigateToperfil = {
-                    navController.navigate("perfil") {
+                    navController.navigate("perfil/$usuario") {
                         popUpTo("loging") {
                             inclusive = true
                         }
@@ -85,8 +103,10 @@ fun Navegacion(navController: NavHostController,
 
         }
 
-        composable("perfil") {
-            PerfilScreen(auth = auth, db,
+        composable("perfil/{usuario}") {backStackEntry ->
+            val usuario = backStackEntry.arguments?.getString("usuario") ?: ""
+
+            PerfilScreen(usuario = usuario, auth = auth, db,
             navigate_registro_completo= {nombre->
                 navController.navigate("registro_completo/$nombre"){
                     popUpTo("estado_registro"){

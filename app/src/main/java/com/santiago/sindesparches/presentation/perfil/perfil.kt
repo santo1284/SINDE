@@ -33,6 +33,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,8 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.TextStyle
@@ -57,6 +60,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
+import com.santiago.sindesparches.ui.theme.Purple
+import com.santiago.sindesparches.ui.theme.azul
+import com.santiago.sindesparches.ui.theme.azul_borde
 import com.santiago.sindesparches.ui.theme.azul_comienzo
 import com.santiago.sindesparches.ui.theme.azul_final
 import com.santiago.sindesparches.ui.theme.azul_mitad
@@ -64,6 +70,7 @@ import com.santiago.sindesparches.ui.theme.black
 import com.santiago.sindesparches.ui.theme.boton
 import com.santiago.sindesparches.ui.theme.boton_iniciar
 import com.santiago.sindesparches.ui.theme.boton_texto
+import com.santiago.sindesparches.ui.theme.gris
 import com.santiago.sindesparches.ui.theme.white
 
 
@@ -72,20 +79,24 @@ import com.santiago.sindesparches.ui.theme.white
 @Composable
 
 fun PerfilScreen(
+    usuario: String,
     auth: FirebaseAuth,
     db: FirebaseFirestore,
     onLogout: () -> Unit = {},
-    navigate_registro_completo: (nombre: String) -> Unit = {}
+    navigate_registro_completo: (nombre: String) -> Unit = {},
+    navigateToInicial: () -> Unit = {}
 ) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var nombre by remember { mutableStateOf("") }
+    val user = FirebaseAuth.getInstance().currentUser
+    val nombreUsuario = user?.displayName
+    val login_user = usuario
+    var nombre by remember { mutableStateOf(nombreUsuario ?: login_user) }
     var celular by remember { mutableStateOf("") }
 
     var mensaje by remember { mutableStateOf("") }
 
     var imageUrl by remember { mutableStateOf<String?>(null) }
 
-    var selectedSexo by remember { mutableStateOf("Genero") }
     var edad by remember { mutableStateOf<Int?>(null) }
 
     var selectedCiudad by remember { mutableStateOf("seleccionar ciudad") }
@@ -137,16 +148,58 @@ fun PerfilScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(azul_comienzo, azul_mitad, azul_final))),
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(azul, azul_mitad, Purple),
+                    start = Offset(Float.POSITIVE_INFINITY, 0f),
+                    end = Offset(0f, Float.POSITIVE_INFINITY)
+                )
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+
+        Row(
+            modifier = Modifier,
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = { showDialog = true }, // Mostrar el diálogo al hacer clic
+                colors = ButtonDefaults.buttonColors(containerColor = boton)
+            ) {
+                Icon(
+                    modifier = Modifier
+                        .width(50.dp)
+                        .height(50.dp),
+                    painter = painterResource(id = R.drawable.bx_arrow_back),
+                    contentDescription = "Retroceder y eliminar perfil",
+                    tint = white,
+                )
+            }
+
+            Spacer(modifier = Modifier.width(100.dp))
+
+
+            Text(
+                text = "PERFIL",
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                color = Color.White,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold
+
+            )
+
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
         Box(
+
             modifier = Modifier
-                .size(150.dp)
-                .clip(CircleShape)
-                .background(color = boton_texto)
-                .border(2.dp, Color.White, CircleShape),
+                .size(160.dp)
+                .background(color = boton_texto, RoundedCornerShape(20.dp))
+                .border(3.dp, white, RoundedCornerShape(20.dp)),
+
             contentAlignment = Alignment.Center
         ) {
             if (imageUri != null) {
@@ -154,7 +207,8 @@ fun PerfilScreen(
                     painter = rememberAsyncImagePainter(imageUri),
                     contentDescription = "Imagen seleccionada",
                     modifier = Modifier
-                        .size(250.dp)
+                        .size(150.dp)
+                        .border(0.dp, boton, RoundedCornerShape(20.dp))
                 )
             } else {
                 Icon(
@@ -185,6 +239,18 @@ fun PerfilScreen(
             Text("Imagen subida con éxito")
         }
         // Campo de texto para ingresar el nombre
+
+        Text(
+            text = "Nombre: ",
+            color = Color.Black,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Start,
+            modifier = Modifier
+                .width(250.dp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
         OutlinedTextField(
             value = nombre,
             onValueChange = { nombre = it },
@@ -192,12 +258,13 @@ fun PerfilScreen(
             textStyle = TextStyle(
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
+                textAlign = if (nombre.isEmpty()) TextAlign.Start else TextAlign.Center
             ),
-            placeholder = { Text("nombre de usuario", color = Color.Black) },
+            placeholder = { Text("nombre", color = Color.Gray) },
                colors = TextFieldDefaults.colors(
                 focusedContainerColor = boton_texto,
                 unfocusedContainerColor = boton,
-                unfocusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = white,
                 focusedIndicatorColor = boton,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = white,
@@ -209,16 +276,27 @@ fun PerfilScreen(
 
         //campo para numero celular
 
+        Text(
+            text = "Celular: ",
+            color = Color.Black,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Start,
+            modifier = Modifier
+                .width(250.dp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
         OutlinedTextField(
             value= celular,
             onValueChange = { celular = it },
             singleLine = true,
             textStyle = TextStyle(
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 textAlign = if (celular.isEmpty()) TextAlign.Start else TextAlign.Center
             ),
-            placeholder = {Text("numero celular",color = Color.Black )},
+            placeholder = {Text("numero celular")},
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = boton_texto,
                 unfocusedContainerColor = boton,
@@ -227,6 +305,8 @@ fun PerfilScreen(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = white,
                 cursorColor = white,
+                unfocusedPlaceholderColor = gris,
+                focusedPlaceholderColor = black,
             ), shape = RoundedCornerShape(40.dp)
         )
 
@@ -242,14 +322,31 @@ fun PerfilScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+
         //seleccionar ciudad donde se encuentra
 
-        CiudadDropdown(selectedCiudad) { nuevaCiudad ->
-            selectedCiudad = nuevaCiudad
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Ciudad: ",
+                color = Color.Black,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+
+            CiudadDropdown(selectedCiudad) { nuevaCiudad ->
+                selectedCiudad = nuevaCiudad
+            }
         }
 
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Botón para guardar en Firestore y la imagen
-        Button(onClick = {
+        Button(colors = ButtonDefaults.buttonColors(boton_iniciar)
+            , modifier = Modifier.height(50.dp).width(200.dp)
+            , onClick = {
 
             if (imageUri == null) {
                 mensaje = "Por favor selecciona una imagen"
@@ -302,13 +399,15 @@ fun PerfilScreen(
             }
 
         }, enabled = nombre.isNotEmpty()) { // Deshabilita el botón si no se registra un nombre
-            Text("Guardar Perfil")
+            Text("Guardar Perfil", fontSize = 20.sp, style = TextStyle(fontWeight = FontWeight.Bold))
+
         }
 
         // Mensaje de confirmación
         if (mensaje.isNotEmpty()) {
             Text(text = mensaje, fontSize = 16.sp, color = Color.Black)
         }
+        Spacer(modifier = Modifier.height(50.dp))
     }
 }
 
@@ -375,21 +474,23 @@ fun EdadDropdown(onEdadSelected: (Int) -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        Text(text = "Selecciona tu edad: ", color = Color.White)
+        Text(text = "Seleccione su edad: ", color = Color.Black, style = TextStyle(fontWeight = FontWeight.Bold), fontSize = 15.sp)
+
+        Spacer(modifier = Modifier.width(25.dp))
 
         Button(
             onClick = { expanded = true }, colors = ButtonDefaults.buttonColors(boton),
             modifier = Modifier
-                .border(1.dp, if (selectedEdad != null) Color.White else Color.Gray, RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White, RoundedCornerShape(20.dp))
                 .height(40.dp)
                 .width(100.dp)
         ) {
             Text(
                 text = selectedEdad?.toString() ?: "edad",
-                color = if (selectedEdad != null) Color.White else Color.Gray,
+                color = if (selectedEdad != null) Color.White else Color.Gray, style = TextStyle(fontWeight = FontWeight.Bold),
                 modifier = Modifier
                     .background(boton),
-                fontSize = 20.sp,
+                fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -426,15 +527,17 @@ fun CiudadDropdown(selectedCiudad: String, onCiudadSelected: (String) -> Unit) {
     Box(modifier = Modifier
         .padding(16.dp)
         .clickable { expanded = true }
-        .border(1.dp, if (selectedCiudad == "seleccionar ciudad") Color.Gray else Color.White, RoundedCornerShape(8.dp))
+        .border(1.dp, Color.White, RoundedCornerShape(8.dp))
         .height(40.dp)
-        .width(200.dp)
+        .width(180.dp)
         .padding(start = 8.dp, top = 8.dp)
     ) {
         Text(
             text = selectedCiudad,
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontWeight = FontWeight.Bold),
             color = if (selectedCiudad == "seleccionar ciudad") Color.Gray else Color.White,
-            fontSize = 20.sp,
+            fontSize = 15.sp,
         )
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
