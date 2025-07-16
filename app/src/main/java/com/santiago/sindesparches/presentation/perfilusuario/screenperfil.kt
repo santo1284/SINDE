@@ -125,14 +125,12 @@ fun UserProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(
-                    brush = Brush.linearGradient(
+                    brush = Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF4CAF50), // Verde
-                            Color(0xFF2196F3), // Azul
-                            Color(0xFF9C27B0)  // Purple
-                        ),
-                        start = Offset(Float.POSITIVE_INFINITY, 0f),
-                        end = Offset(0f, Float.POSITIVE_INFINITY)
+                            Color(0xFF000000),
+                            Color(0xFF1A001A),
+                            Color(0xFF330033)
+                        )
                     )
                 )
         ) {
@@ -651,61 +649,59 @@ fun SocialInteractionsSection(
             containerColor = Color.White.copy(alpha = 0.1f)
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Botones de acción mejorados
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                // Botón Me Gusta
-                InteractionButton(
-                    icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    count = plan.likes.size,
-                    label = "Me gusta",
-                    isActive = isLiked,
-                    activeColor = Color(0xFFE91E63), // Rosa/Rojo
-                    onIconClick = {
-                        plan.id?.let { onLikeToggle(it) }
-                    },
-                    onCountClick = {
-                        if (plan.likes.isNotEmpty()) {
-                            showLikesDialog = true
-                        }
+            // Botón Me Gusta
+            InteractionButton(
+                icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                count = plan.likes.size,
+                label = "Me gusta",
+                isActive = isLiked,
+                activeColor = Color(0xFFE91E63), // Rosa/Rojo
+                onIconClick = {
+                    plan.id?.let { onLikeToggle(it) }
+                },
+                onCountClick = {
+                    if (plan.likes.isNotEmpty()) {
+                        showLikesDialog = true
                     }
-                )
+                }
+            )
 
-                // Botón Participar
-                InteractionButton(
-                    icon = if (isParticipating) Icons.Default.Check else Icons.Default.Add,
-                    count = plan.participants.size,
-                    label = "Participar",
-                    isActive = isParticipating,
-                    activeColor = Color(0xFF4CAF50), // Verde
-                    onIconClick = {
-                        plan.id?.let { onParticipateToggle(it) }
-                    },
-                    onCountClick = {
-                        if (plan.participants.isNotEmpty()) {
-                            showParticipantsDialog = true
-                        }
+            // Botón Participar
+            InteractionButton(
+                icon = if (isParticipating) Icons.Default.Check else Icons.Default.Add,
+                count = plan.participants.size,
+                label = "Participar",
+                isActive = isParticipating,
+                activeColor = Color(0xFF4CAF50), // Verde
+                onIconClick = {
+                    plan.id?.let { onParticipateToggle(it) }
+                },
+                onCountClick = {
+                    if (plan.participants.isNotEmpty()) {
+                        showParticipantsDialog = true
                     }
-                )
+                }
+            )
 
-                // Botón Compartir
-                InteractionButton(
-                    icon = Icons.Default.Share,
-                    count = plan.shares,
-                    label = "Compartir",
-                    isActive = false,
-                    activeColor = Color.Blue,
-                    onIconClick = {
-                        plan.id?.let { onShare(it) }
-                    },
-                    onCountClick = { } // No hace nada al presionar el contador
-                )
-            }
+            // Botón Compartir
+            InteractionButton(
+                icon = Icons.Default.Share,
+                count = plan.shares,
+                label = "Compartir",
+                isActive = false,
+                activeColor = Color.Blue,
+                onIconClick = {
+                    plan.id?.let { onShare(it) }
+                },
+                onCountClick = { } // No hace nada al presionar el contador
+            )
 
             // Botón de Comentarios
             InteractionButton(
