@@ -31,24 +31,8 @@ fun ChatsListScreen(
     navigateToChat: (String) -> Unit,
     navigateBack: () -> Unit
 ) {
-    val userId = auth.currentUser?.uid
-    val chats = remember { mutableStateOf<List<Chat>>(emptyList()) }
-    val isLoading = remember { mutableStateOf(true) }
-
-    LaunchedEffect(userId) {
-        if (userId != null) {
-            isLoading.value = true
-            val chatsQuery = db.collection("chats")
-                .whereArrayContains("participants", userId)
-                .get()
-                .await()
-            val chatList = chatsQuery.documents.mapNotNull { doc ->
-                doc.toObject(Chat::class.java)?.copy(id = doc.id)
-            }
-            chats.value = chatList
-            isLoading.value = false
-        }
-    }
+    var tabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("Mis Planes", "Mis Mensajes")
 
     Scaffold(
         topBar = {
@@ -62,23 +46,99 @@ fun ChatsListScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (isLoading.value) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            } else if (chats.value.isEmpty()) {
-                Text(text = "No tienes chats", modifier = Modifier.align(Alignment.CenterHorizontally))
-            } else {
-                LazyColumn {
-                    items(chats.value) { chat ->
-                        ChatItem(chat = chat, db = db, onChatClick = {
-                            navigateToChat(chat.planId)
-                        })
-                    }
+        Column(modifier = Modifier.padding(paddingValues)) {
+            TabRow(selectedTabIndex = tabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = tabIndex == index,
+                        onClick = { tabIndex = index },
+                        text = { Text(text = title) }
+                    )
                 }
+            }
+            when (tabIndex) {
+                0 -> MyPlansChats(auth, db, navigateToChat)
+                1 -> MyMessagesChats(auth, db, navigateToChat)
+            }
+        }
+    }
+}
+
+@Composable
+fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
+    val userId = auth.currentUser?.uid
+    val myPlans = remember { mutableStateOf<List<Plan>>(emptyList()) }
+    val isLoading = remember { mutableStateOf(true) }
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            isLoading.value = true
+            val plansQuery = db.collection("planes")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            val planList = plansQuery.documents.mapNotNull { doc ->
+                doc.toObject(Plan::class.java)?.copy(id = doc.id)
+            }
+            myPlans.value = planList
+            isLoading.value = false
+        }
+    }
+
+    if (isLoading.value) {
+        CircularProgressIndicator()
+    } else if (myPlans.value.isEmpty()) {
+        Text("No has creado ningún plan.")
+    } else {
+        LazyColumn {
+            items(myPlans.value) { plan ->
+                // Aquí deberías mostrar una lista de chats por cada plan
+                Text(text = plan.title, modifier = Modifier.clickable { navigateToChat(plan.id) })
+            }
+        }
+    }
+}
+
+@Composable
+fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
+    val userId = auth.currentUser?.uid
+    val myMessages = remember { mutableStateOf<List<Chat>>(emptyList()) }
+    val isLoading = remember { mutableStateOf(true) }
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            isLoading.value = true
+            val chatsQuery = db.collection("chats")
+                .whereArrayContains("participants", userId)
+                .get()
+                .await()
+            val chatList = chatsQuery.documents.mapNotNull { doc ->
+                val chat = doc.toObject(Chat::class.java)?.copy(id = doc.id)
+                // Filtrar los chats donde el usuario no es el creador del plan
+                val planId = chat?.planId ?: ""
+                val planDoc = db.collection("planes").document(planId).get().await()
+                val plan = planDoc.toObject(Plan::class.java)
+                if (plan?.userId != userId) {
+                    chat
+                } else {
+                    null
+                }
+            }
+            myMessages.value = chatList
+            isLoading.value = false
+        }
+    }
+
+    if (isLoading.value) {
+        CircularProgressIndicator()
+    } else if (myMessages.value.isEmpty()) {
+        Text("No has iniciado ninguna conversación.")
+    } else {
+        LazyColumn {
+            items(myMessages.value) { chat ->
+                ChatItem(chat = chat, db = db, onChatClick = {
+                    navigateToChat(chat.planId)
+                })
             }
         }
     }

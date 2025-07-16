@@ -37,15 +37,26 @@ fun ChatScreen(
     val userId = auth.currentUser?.uid
 
     LaunchedEffect(planId) {
+        val participants = listOfNotNull(userId, getPlanOwnerId(db, planId)).sorted()
         val chatQuery = db.collection("chats")
             .whereEqualTo("planId", planId)
+            .whereEqualTo("participants", participants)
             .limit(1)
             .get()
             .await()
 
         if (chatQuery.isEmpty) {
-            val newChat = Chat(planId = planId, participants = listOfNotNull(userId))
+            val newChat = Chat(planId = planId, participants = participants)
             db.collection("chats").add(newChat).await()
+        }
+    }
+
+    suspend fun getPlanOwnerId(db: FirebaseFirestore, planId: String): String? {
+        return try {
+            val planDoc = db.collection("planes").document(planId).get().await()
+            planDoc.getString("userId")
+        } catch (e: Exception) {
+            null
         }
 
         val chatId = chatQuery.documents.firstOrNull()?.id
