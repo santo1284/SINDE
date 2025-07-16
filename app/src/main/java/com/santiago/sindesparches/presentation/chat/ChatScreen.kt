@@ -33,7 +33,7 @@ fun ChatScreen(
     navigateBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val messages = remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
     var newMessage by remember { mutableStateOf("") }
     val userId = auth.currentUser?.uid
 
@@ -45,7 +45,6 @@ fun ChatScreen(
             .await()
 
         if (chatQuery.isEmpty) {
-            // No chat exists, create one
             val newChat = Chat(planId = planId, participants = listOfNotNull(userId))
             db.collection("chats").add(newChat).await()
         }
@@ -59,7 +58,8 @@ fun ChatScreen(
                         val messageList = it.documents.mapNotNull { doc ->
                             doc.toObject(ChatMessage::class.java)?.copy(id = doc.id)
                         }
-                        messages.value = messageList
+                        messages.clear()
+                        messages.addAll(messageList)
                     }
                 }
         }
@@ -87,7 +87,7 @@ fun ChatScreen(
                     .weight(1f)
                     .padding(horizontal = 16.dp)
             ) {
-                items(messages.value) { message ->
+                items(messages) { message ->
                     MessageItem(message = message, isCurrentUser = message.senderId == userId)
                 }
             }
@@ -112,14 +112,26 @@ fun ChatScreen(
                                 val userDoc = db.collection("perfil").document(userId).get().await()
                                 val userName = userDoc.getString("nombre") ?: "Usuario"
                                 val profilePictureUrl = userDoc.getString("profileImageUrl")
-                                val message = ChatMessage(
+                                val tempMessage = ChatMessage(
+                                    id = "temp_${System.currentTimeMillis()}",
                                     senderId = userId,
                                     senderName = userName,
                                     message = newMessage,
                                     timestamp = com.google.firebase.Timestamp.now(),
-                                    senderProfilePictureUrl = profilePictureUrl
+                                    senderProfilePictureUrl = profilePictureUrl,
+                                    status = MessageStatus.SENDING
                                 )
-                                db.collection("chats").document(chatId).collection("messages").add(message).await()
+                                messages.add(tempMessage)
+                                val messageToSend = tempMessage.copy(id = "", status = MessageStatus.SENT)
+                                try {
+                                    db.collection("chats").document(chatId).collection("messages").add(messageToSend).await()
+                                    messages.remove(tempMessage)
+                                } catch (e: Exception) {
+                                    val index = messages.indexOf(tempMessage)
+                                    if (index != -1) {
+                                        messages[index] = tempMessage.copy(status = MessageStatus.FAILED)
+                                    }
+                                }
                                 newMessage = ""
                             }
                         }
@@ -134,6 +146,12 @@ fun ChatScreen(
 
 @Composable
 fun MessageItem(message: ChatMessage, isCurrentUser: Boolean) {
+    val messageColor = when (message.status) {
+        MessageStatus.SENDING -> Color.Gray
+        MessageStatus.SENT -> if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+        MessageStatus.FAILED -> Color.Red
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,7 +173,7 @@ fun MessageItem(message: ChatMessage, isCurrentUser: Boolean) {
             Text(text = message.senderName, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                color = messageColor
             ) {
                 Text(
                     text = message.message,

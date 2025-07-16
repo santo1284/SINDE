@@ -144,7 +144,8 @@ fun homeScreen(
     navigateToEditPlan: (String) -> Unit = {},
     navigateToMegusta: () -> Unit = {},
     navigateToParticipar: () -> Unit = {},
-    navigateToNotificaciones: () -> Unit = {}
+    navigateToNotificaciones: () -> Unit = {},
+    navigateToChatsList: () -> Unit = {}
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
@@ -611,6 +612,8 @@ fun homeScreen(
                 Button(onClick = navigateToParticipar) { Text("Participar") }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = navigateToNotificaciones) { Text("Notificaciones") }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = navigateToChatsList) { Text("Mis Chats") }
                 Button(onClick = { showRightMenu = false }, modifier = Modifier.fillMaxWidth()) { Text("Cerrar") }
             }
         }
