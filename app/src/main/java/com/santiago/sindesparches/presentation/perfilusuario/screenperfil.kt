@@ -609,6 +609,9 @@ private fun PlanCard(
                             Log.e("PlanCard", "Error al compartir: ${e.message}")
                         }
                     }
+                },
+                onCommentClick = { planId ->
+                    onCommentClick(planId)
                 }
             )
         }
@@ -632,7 +635,8 @@ fun SocialInteractionsSection(
     onLikeToggle: (String) -> Unit,
     onParticipateToggle: (String) -> Unit,
     onShare: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit
+    navigateToMiPerfil: () -> Unit,
+    onCommentClick: (String) -> Unit
 ) {
     var showLikesDialog by remember { mutableStateOf(false) }
     var showParticipantsDialog by remember { mutableStateOf(false) }
