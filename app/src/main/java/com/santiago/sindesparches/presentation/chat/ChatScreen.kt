@@ -37,6 +37,16 @@ fun ChatScreen(
     var newMessage by remember { mutableStateOf("") }
     val userId = auth.currentUser?.uid
 
+    // Move the function outside of LaunchedEffect
+    suspend fun getPlanOwnerId(db: FirebaseFirestore, planId: String): String? {
+        return try {
+            val planDoc = db.collection("planes").document(planId).get().await()
+            planDoc.getString("userId")
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     LaunchedEffect(planId) {
         val participants = listOfNotNull(userId, getPlanOwnerId(db, planId)).sorted()
         val chatQuery = db.collection("chats")
@@ -50,16 +60,8 @@ fun ChatScreen(
             val newChat = Chat(planId = planId, participants = participants)
             db.collection("chats").add(newChat).await()
         }
-    }
 
-    suspend fun getPlanOwnerId(db: FirebaseFirestore, planId: String): String? {
-        return try {
-            val planDoc = db.collection("planes").document(planId).get().await()
-            planDoc.getString("userId")
-        } catch (e: Exception) {
-            null
-        }
-
+        // Set up message listener
         val chatId = chatQuery.documents.firstOrNull()?.id
         if (chatId != null) {
             db.collection("chats").document(chatId).collection("messages")
