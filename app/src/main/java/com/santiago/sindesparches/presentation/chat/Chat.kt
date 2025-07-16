@@ -16,7 +16,7 @@ data class ChatMessage(
     val status: MessageStatus = MessageStatus.SENT
 )
 
-data class Conversation(
+data class PrivateChat(
     val id: String = "",
     val planId: String = "",
     val participants: List<String> = emptyList(), // Siempre 2 participantes: creador y interesado

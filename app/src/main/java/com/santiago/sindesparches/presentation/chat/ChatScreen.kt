@@ -36,30 +36,30 @@ fun ChatScreen(
     var newMessage by remember { mutableStateOf("") }
     val userId = auth.currentUser?.uid
 
-    var conversationId by remember { mutableStateOf<String?>(null) }
+    var privateChatId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(planId) {
         val planOwnerId = getPlanOwnerId(db, planId)
         val participants = listOfNotNull(userId, planOwnerId).sorted()
 
         if (userId != null && planOwnerId != null) {
-            val conversationQuery = db.collection("conversations")
+            val privateChatQuery = db.collection("private_chats")
                 .whereEqualTo("planId", planId)
                 .whereEqualTo("participants", participants)
                 .limit(1)
                 .get()
                 .await()
 
-            if (conversationQuery.isEmpty) {
-                val newConversation = Conversation(planId = planId, participants = participants)
-                val docRef = db.collection("conversations").add(newConversation).await()
-                conversationId = docRef.id
+            if (privateChatQuery.isEmpty) {
+                val newPrivateChat = PrivateChat(planId = planId, participants = participants)
+                val docRef = db.collection("private_chats").add(newPrivateChat).await()
+                privateChatId = docRef.id
             } else {
-                conversationId = conversationQuery.documents.firstOrNull()?.id
+                privateChatId = privateChatQuery.documents.firstOrNull()?.id
             }
 
-            conversationId?.let { convId ->
-                db.collection("conversations").document(convId).collection("messages")
+            privateChatId?.let { chatId ->
+                db.collection("private_chats").document(chatId).collection("messages")
                     .orderBy("timestamp", Query.Direction.ASCENDING)
                     .addSnapshotListener { snapshot, _ ->
                         snapshot?.let {
@@ -122,7 +122,7 @@ fun ChatScreen(
                     placeholder = { Text("Escribe un mensaje...") }
                 )
                 IconButton(onClick = {
-                    if (newMessage.isNotBlank() && userId != null && conversationId != null) {
+                    if (newMessage.isNotBlank() && userId != null && privateChatId != null) {
                         coroutineScope.launch {
                             val userDoc = db.collection("perfil").document(userId).get().await()
                             val userName = userDoc.getString("nombre") ?: "Usuario"
@@ -139,7 +139,7 @@ fun ChatScreen(
                             messages.add(tempMessage)
                             val messageToSend = tempMessage.copy(id = "", status = MessageStatus.SENT)
                             try {
-                                db.collection("conversations").document(conversationId!!).collection("messages").add(messageToSend).await()
+                                db.collection("private_chats").document(privateChatId!!).collection("messages").add(messageToSend).await()
                                 messages.remove(tempMessage)
                             } catch (e: Exception) {
                                 val index = messages.indexOf(tempMessage)

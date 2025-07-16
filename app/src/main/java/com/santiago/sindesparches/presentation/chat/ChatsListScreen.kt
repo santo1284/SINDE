@@ -67,42 +67,41 @@ fun ChatsListScreen(
 @Composable
 fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
     val userId = auth.currentUser?.uid
-    val conversations = remember { mutableStateOf<List<Conversation>>(emptyList()) }
+    val privateChats = remember { mutableStateOf<List<PrivateChat>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
 
     LaunchedEffect(userId) {
         if (userId != null) {
             isLoading.value = true
-            val conversationsQuery = db.collection("conversations")
+            val privateChatsQuery = db.collection("private_chats")
                 .whereArrayContains("participants", userId)
                 .get()
                 .await()
-            val conversationList = conversationsQuery.documents.mapNotNull { doc ->
-                val conversation = doc.toObject(Conversation::class.java)?.copy(id = doc.id)
-                val planId = conversation?.planId ?: ""
+            val privateChatList = privateChatsQuery.documents.mapNotNull { doc ->
+                val privateChat = doc.toObject(PrivateChat::class.java)?.copy(id = doc.id)
+                val planId = privateChat?.planId ?: ""
                 val planDoc = db.collection("planes").document(planId).get().await()
                 val plan = planDoc.toObject(Plan::class.java)
                 if (plan?.userId == userId) {
-                    conversation
+                    privateChat
                 } else {
                     null
                 }
             }
-            conversations.value = conversationList
+            privateChats.value = privateChatList
             isLoading.value = false
         }
     }
 
     if (isLoading.value) {
         CircularProgressIndicator()
-    } else if (conversations.value.isEmpty()) {
+    } else if (privateChats.value.isEmpty()) {
         Text("Nadie te ha escrito aún.")
     } else {
         LazyColumn {
-            items(conversations.value) { conversation ->
-                ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
-                    // Navegar al chat con la conversación específica
-                    navigateToChat(conversation.id)
+            items(privateChats.value) { privateChat ->
+                PrivateChatItem(privateChat = privateChat, db = db, currentUserId = userId, onPrivateChatClick = {
+                    navigateToChat(privateChat.id)
                 })
             }
         }
@@ -112,41 +111,41 @@ fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (Str
 @Composable
 fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
     val userId = auth.currentUser?.uid
-    val conversations = remember { mutableStateOf<List<Conversation>>(emptyList()) }
+    val privateChats = remember { mutableStateOf<List<PrivateChat>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
 
     LaunchedEffect(userId) {
         if (userId != null) {
             isLoading.value = true
-            val conversationsQuery = db.collection("conversations")
+            val privateChatsQuery = db.collection("private_chats")
                 .whereArrayContains("participants", userId)
                 .get()
                 .await()
-            val conversationList = conversationsQuery.documents.mapNotNull { doc ->
-                val conversation = doc.toObject(Conversation::class.java)?.copy(id = doc.id)
-                val planId = conversation?.planId ?: ""
+            val privateChatList = privateChatsQuery.documents.mapNotNull { doc ->
+                val privateChat = doc.toObject(PrivateChat::class.java)?.copy(id = doc.id)
+                val planId = privateChat?.planId ?: ""
                 val planDoc = db.collection("planes").document(planId).get().await()
                 val plan = planDoc.toObject(Plan::class.java)
                 if (plan?.userId != userId) {
-                    conversation
+                    privateChat
                 } else {
                     null
                 }
             }
-            conversations.value = conversationList
+            privateChats.value = privateChatList
             isLoading.value = false
         }
     }
 
     if (isLoading.value) {
         CircularProgressIndicator()
-    } else if (conversations.value.isEmpty()) {
+    } else if (privateChats.value.isEmpty()) {
         Text("No has iniciado ninguna conversación.")
     } else {
         LazyColumn {
-            items(conversations.value) { conversation ->
-                ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
-                    navigateToChat(conversation.id)
+            items(privateChats.value) { privateChat ->
+                PrivateChatItem(privateChat = privateChat, db = db, currentUserId = userId, onPrivateChatClick = {
+                    navigateToChat(privateChat.id)
                 })
             }
         }
@@ -154,24 +153,24 @@ fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (
 }
 
 @Composable
-fun ConversationItem(conversation: Conversation, db: FirebaseFirestore, currentUserId: String?, onConversationClick: () -> Unit) {
+fun PrivateChatItem(privateChat: PrivateChat, db: FirebaseFirestore, currentUserId: String?, onPrivateChatClick: () -> Unit) {
     var otherUser by remember { mutableStateOf<com.santiago.sindesparches.presentation.plan_detail.UserProfile?>(null) }
     var plan by remember { mutableStateOf<Plan?>(null) }
 
-    LaunchedEffect(conversation) {
-        val otherUserId = conversation.participants.find { it != currentUserId }
+    LaunchedEffect(privateChat) {
+        val otherUserId = privateChat.participants.find { it != currentUserId }
         if (otherUserId != null) {
             val userDoc = db.collection("perfil").document(otherUserId).get().await()
             otherUser = userDoc.toObject(com.santiago.sindesparches.presentation.plan_detail.UserProfile::class.java)
         }
-        val planDoc = db.collection("planes").document(conversation.planId).get().await()
+        val planDoc = db.collection("planes").document(privateChat.planId).get().await()
         plan = planDoc.toObject(Plan::class.java)
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onConversationClick() }
+            .clickable { onPrivateChatClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -193,7 +192,7 @@ fun ConversationItem(conversation: Conversation, db: FirebaseFirestore, currentU
                 Text(text = plan?.title ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
                 Text(text = otherUser?.nombre ?: "", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             }
-            Text(text = conversation.lastMessage?.message ?: "No hay mensajes", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(text = privateChat.lastMessage?.message ?: "No hay mensajes", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         }
     }
 }
