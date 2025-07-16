@@ -1,38 +1,75 @@
 package com.santiago.sindesparches.presentation.flash_plan
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.database.FirebaseDatabase
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
+import kotlinx.coroutines.*
+import java.util.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.res.painterResource
-import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.util.UUID
+
+// Colores del tema nocturno
+object NightTheme {
+    val Background = Color(0xFF0A0A0F)
+    val Surface = Color(0xFF1A1A2E)
+    val SurfaceVariant = Color(0xFF16213E)
+    val Primary = Color(0xFFE91E63) // Fucsia
+    val PrimaryVariant = Color(0xFF8E24AA) // Fucsia más oscuro
+    val Secondary = Color(0xFFFFC107) // Amarillo
+    val Tertiary = Color(0xFF2196F3) // Azul
+    val OnSurface = Color(0xFFE0E0E0)
+    val OnSurfaceVariant = Color(0xFFB0B0B0)
+    val Success = Color(0xFF4CAF50)
+    val Error = Color(0xFFFF5252)
+}
 
 //funcion traer nombre de firebase
 fun obtenerNombreUsuario(onNombreObtenido: (String?) -> Unit) {
@@ -58,322 +95,605 @@ fun obtenerNombreUsuario(onNombreObtenido: (String?) -> Unit) {
     }
 }
 
-    @Composable
-    fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> Unit) {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> Unit) {
 
-        // Estados
-        var showExitDialog by remember { mutableStateOf(false) }
-        var imageUri by remember { mutableStateOf<Uri?>(null) }
-        var imageUrl by remember { mutableStateOf<String?>(null) }
-        var isLoading by remember { mutableStateOf(false) }
-        var uploadStatus by remember { mutableStateOf<String?>(null) }
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
+    // Estados
+    var showExitDialog by remember { mutableStateOf(false) }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageUrl by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var uploadStatus by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-        var showSuccessDialog by remember { mutableStateOf(false) }
-        var showErrorDialog by remember { mutableStateOf(false) }
-        var errorMessage by remember { mutableStateOf("") }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
-        //traer nombre de firebase
-        var nombre by remember { mutableStateOf<String?>(null) }
+    // Traer nombre de firebase
+    var nombre by remember { mutableStateOf<String?>(null) }
 
-        LaunchedEffect(Unit) {
-            com.santiago.sindesparches.presentation.home.obtenerNombreUsuario { resultado ->
-                nombre = resultado
-            }
-        }
-
-        // Launcher para seleccionar imagen
-        val galleryLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.GetContent(),
-            onResult = { uri ->
-                imageUri = uri
-                imageUrl = null
-                uploadStatus = null
-            }
-        )
-
-        // Manejador del botón atrás
-        BackHandler(enabled = true) {
-            showExitDialog = true
-        }
-
-        // Función para comprimir imagen
-        suspend fun compressImage(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val originalBitmap = BitmapFactory.decodeStream(inputStream)
-
-                // Redimensionar manteniendo aspect ratio
-                val maxSize = 1024
-                val width = originalBitmap.width
-                val height = originalBitmap.height
-                val scale = if (width > height) {
-                    maxSize.toFloat() / width
-                } else {
-                    maxSize.toFloat() / height
-                }
-
-                val scaledBitmap = Bitmap.createScaledBitmap(
-                    originalBitmap,
-                    (width * scale).toInt(),
-                    (height * scale).toInt(),
-                    true
-                )
-
-                // Comprimir en formato WEBP
-                ByteArrayOutputStream().use { outputStream ->
-                    scaledBitmap.compress(Bitmap.CompressFormat.WEBP, 80, outputStream)
-                    scaledBitmap.recycle()
-                    originalBitmap.recycle()
-                    outputStream.toByteArray()
-                }
-            } ?: throw Exception("No se pudo leer la imagen")
-        }
-
-        // Función para subir imagen
-        suspend fun uploadFlashPlanImage(uri: Uri): String? {
-            return try {
-                val user = auth.currentUser ?: throw Exception("Usuario no autenticado")
-                val userId = user.uid
-                val userName = user.displayName ?: nombre
-                val userPhoto = user.photoUrl?.toString() ?: ""
-
-                val storageRef = FirebaseStorage.getInstance().reference
-                val imageName = "${UUID.randomUUID()}.webp"
-                // Ruta que coincide con las reglas de seguridad
-                val imagePath = "flashPlans/$userId/$imageName"
-
-                // 1. Comprimir imagen
-                val compressedImage = compressImage(uri)
-
-                // 2. Subir a Storage
-                val imageRef = storageRef.child(imagePath)
-                imageRef.putBytes(compressedImage).await()
-                val downloadUrl = imageRef.downloadUrl.await().toString()
-
-                // 3. Crear documento en flashPlans con campos adicionales
-                val flashPlanData = mapOf(
-                    "userId" to userId,
-                    "userName" to userName,
-                    "userPhoto" to userPhoto,
-                    "imageUrl" to downloadUrl,
-                    "timestamp" to FieldValue.serverTimestamp(),
-                    "viewers" to listOf<String>() // Lista vacía inicial de viewers
-                )
-
-                db.collection("flashPlans").add(flashPlanData).await()
-
-                withContext(Dispatchers.Main) {
-                    showSuccessDialog = true
-                }
-
-                return downloadUrl
-            } catch (e: Exception) {
-                errorMessage = when {
-                    e.message?.contains("network", ignoreCase = true) == true ->
-                        "Error de red. Verifica tu conexión a internet."
-                    e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
-                        "No tienes permisos para guardar el FlashPlan."
-                    e is StorageException -> {
-                        val code = (e as StorageException).errorCode
-                        val httpCode = (e as StorageException).httpResultCode
-                        val detailedMessage = e.message ?: "Sin detalles"
-                        Log.e("StorageException", "Código: $code, HTTP: $httpCode, Mensaje: $detailedMessage")
-                        "Error en Firebase Storage ($httpCode): $detailedMessage"
-                    }
-                    else -> "Error inesperado: ${e.localizedMessage ?: "Error desconocido"}"
-                }
-
-                withContext(Dispatchers.Main) {
-                    showErrorDialog = true
-                }
-                return null
-            }
-        }
-
-        // Diálogo de éxito
-        if (showSuccessDialog) {
-            AlertDialog(
-                onDismissRequest = { showSuccessDialog = false },
-                title = { Text("¡Éxito!") },
-                text = { Text("La imagen se ha subido correctamente") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showSuccessDialog = false
-                            navigateToHome() // Navegar a home después de aceptar
-                        }
-                    ) {
-                        Text("Aceptar")
-                    }
-                }
-            )
-        }
-
-    // Diálogo de error
-        if (showErrorDialog) {
-            AlertDialog(
-                onDismissRequest = { showErrorDialog = false },
-                title = { Text("Error") },
-                text = { Text(errorMessage) },
-                confirmButton = {
-                    TextButton(
-                        onClick = { showErrorDialog = false }
-                    ) {
-                        Text("Entendido")
-                    }
-                }
-            )
-        }
-
-        // UI Principal
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Mostrar imagen seleccionada/subida
-                when {
-                    isLoading -> {
-                        Column(
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Procesando imagen...")
-                        }
-                    }
-                    imageUrl != null -> {
-                        Column(
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = "Imagen del FlashPlan",
-                                modifier = Modifier.size(250.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Imagen cargada exitosamente")
-
-                        }
-                    }
-                    imageUri != null -> {
-                        val bitmap = remember(imageUri) {
-                            context.contentResolver.openInputStream(imageUri!!)?.use {
-                                BitmapFactory.decodeStream(it)
-                            }
-                        }
-                        if (bitmap != null) {
-                            Image(
-                                painter = BitmapPainter(bitmap.asImageBitmap()),
-                                contentDescription = "Imagen seleccionada",
-                                modifier = Modifier.size(250.dp)
-                            )
-                        } else {
-                            Text("No se pudo cargar la imagen")
-                        }
-                    }
-                    else -> {
-                        Column(
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                contentDescription = "Seleccionar imagen",
-                                modifier = Modifier.size(100.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Selecciona una imagen para tu FlashPlan")
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Botón para seleccionar imagen
-                Button(
-                    onClick = { galleryLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Seleccionar Imagen")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Botón para subir imagen
-                if (imageUri != null && imageUrl == null) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                imageUrl = uploadFlashPlanImage(imageUri!!)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Subiendo...")
-                            }
-                        } else {
-                            Text("Subir Imagen")
-                        }
-                    }
-                }
-            }
-
-            // Mostrar estado de la subida
-            uploadStatus?.let { status ->
-                AlertDialog(
-                    onDismissRequest = { uploadStatus = null },
-                    title = { Text(if (status.startsWith("¡")) "Éxito" else "Aviso") },
-                    text = { Text(status) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = { uploadStatus = null }
-                        ) {
-                            Text("OK")
-                        }
-                    }
-                )
-            }
-
-            // Diálogo de confirmación para salir
-            if (showExitDialog) {
-                AlertDialog(
-                    onDismissRequest = { showExitDialog = false },
-                    title = { Text("Confirmar salida") },
-                    text = { Text("¿Estás seguro de que quieres salir? Se perderán los cambios no guardados.") },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showExitDialog = false
-                                navigateToHome()
-                            }
-                        ) {
-                            Text("Salir")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = { showExitDialog = false }
-                        ) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
+    LaunchedEffect(Unit) {
+        obtenerNombreUsuario { resultado ->
+            nombre = resultado
         }
     }
+
+    // Launcher para seleccionar imagen
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            imageUri = uri
+            imageUrl = null
+            uploadStatus = null
+        }
+    )
+
+    // Manejador del botón atrás
+    BackHandler(enabled = true) {
+        showExitDialog = true
+    }
+
+    // Función para comprimir imagen
+    suspend fun compressImage(uri: Uri): ByteArray = withContext(Dispatchers.IO) {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // Redimensionar manteniendo aspect ratio
+            val maxSize = 1024
+            val width = originalBitmap.width
+            val height = originalBitmap.height
+            val scale = if (width > height) {
+                maxSize.toFloat() / width
+            } else {
+                maxSize.toFloat() / height
+            }
+
+            val scaledBitmap = Bitmap.createScaledBitmap(
+                originalBitmap,
+                (width * scale).toInt(),
+                (height * scale).toInt(),
+                true
+            )
+
+            // Comprimir en formato WEBP
+            ByteArrayOutputStream().use { outputStream ->
+                scaledBitmap.compress(Bitmap.CompressFormat.WEBP, 80, outputStream)
+                scaledBitmap.recycle()
+                originalBitmap.recycle()
+                outputStream.toByteArray()
+            }
+        } ?: throw Exception("No se pudo leer la imagen")
+    }
+
+    // Función para subir imagen
+    suspend fun uploadFlashPlanImage(uri: Uri): String? {
+        return try {
+            val user = auth.currentUser ?: throw Exception("Usuario no autenticado")
+            val userId = user.uid
+            val userName = user.displayName ?: nombre
+            val userPhoto = user.photoUrl?.toString() ?: ""
+
+            val storageRef = FirebaseStorage.getInstance().reference
+            val imageName = "${UUID.randomUUID()}.webp"
+            val imagePath = "flashPlans/$userId/$imageName"
+
+            // 1. Comprimir imagen
+            val compressedImage = compressImage(uri)
+
+            // 2. Subir a Storage
+            val imageRef = storageRef.child(imagePath)
+            imageRef.putBytes(compressedImage).await()
+            val downloadUrl = imageRef.downloadUrl.await().toString()
+
+            // 3. Crear documento en flashPlans
+            val flashPlanData = mapOf(
+                "userId" to userId,
+                "userName" to userName,
+                "userPhoto" to userPhoto,
+                "imageUrl" to downloadUrl,
+                "timestamp" to FieldValue.serverTimestamp(),
+                "viewers" to listOf<String>()
+            )
+
+            db.collection("flashPlans").add(flashPlanData).await()
+
+            withContext(Dispatchers.Main) {
+                showSuccessDialog = true
+            }
+
+            return downloadUrl
+        } catch (e: Exception) {
+            errorMessage = when {
+                e.message?.contains("network", ignoreCase = true) == true ->
+                    "Error de red. Verifica tu conexión a internet."
+                e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+                    "No tienes permisos para guardar el FlashPlan."
+                e is StorageException -> {
+                    val code = (e as StorageException).errorCode
+                    val httpCode = (e as StorageException).httpResultCode
+                    val detailedMessage = e.message ?: "Sin detalles"
+                    Log.e("StorageException", "Código: $code, HTTP: $httpCode, Mensaje: $detailedMessage")
+                    "Error en Firebase Storage ($httpCode): $detailedMessage"
+                }
+                else -> "Error inesperado: ${e.localizedMessage ?: "Error desconocido"}"
+            }
+
+            withContext(Dispatchers.Main) {
+                showErrorDialog = true
+            }
+            return null
+        }
+    }
+
+    // Animaciones
+    val infiniteTransition = rememberInfiniteTransition()
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // UI Principal
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        NightTheme.Background,
+                        NightTheme.Surface.copy(alpha = 0.6f),
+                        NightTheme.Background
+                    )
+                )
+            )
+    ) {
+        // Fondo con efectos
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            NightTheme.Primary.copy(alpha = 0.1f),
+                            Color.Transparent
+                        ),
+                        radius = 800f
+                    )
+                )
+        )
+
+        // Header
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Crear FlashPlan",
+                    color = NightTheme.OnSurface,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = { showExitDialog = true }) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = NightTheme.OnSurface
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent
+            ),
+            modifier = Modifier.zIndex(1f)
+        )
+
+        // Contenido principal
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 110.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Título y subtítulo
+            Text(
+                text = "Comparte tu momento",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = NightTheme.OnSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Selecciona una imagen para tu FlashPlan",
+                fontSize = 16.sp,
+                color = NightTheme.OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 22.sp
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Área de imagen
+            Card(
+                modifier = Modifier
+                    .size(280.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = NightTheme.Surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    NightTheme.Primary.copy(alpha = 0.1f),
+                                    NightTheme.Tertiary.copy(alpha = 0.1f)
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        isLoading -> {
+                            LoadingContent()
+                        }
+                        imageUrl != null -> {
+                            SuccessContent(imageUrl = imageUrl!!)
+                        }
+                        imageUri != null -> {
+                            SelectedImageContent(imageUri = imageUri!!, context = context)
+                        }
+                        else -> {
+                            EmptyStateContent(
+                                glowAlpha = glowAlpha,
+                                onClick = { galleryLauncher.launch("image/*") }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // Botones
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() + slideInVertically()
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Botón seleccionar imagen
+                    ElevatedButton(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.elevatedButtonColors(
+                            containerColor = NightTheme.Primary,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Seleccionar Imagen",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // Botón subir imagen
+                    AnimatedVisibility(
+                        visible = imageUri != null && imageUrl == null,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            ElevatedButton(
+                                onClick = {
+                                    isLoading = true
+                                    scope.launch {
+                                        imageUrl = uploadFlashPlanImage(imageUri!!)
+                                        isLoading = false
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                enabled = !isLoading,
+                                colors = ButtonDefaults.elevatedButtonColors(
+                                    containerColor = NightTheme.Secondary,
+                                    contentColor = Color.Black
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color.Black,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Subiendo...",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.KeyboardArrowUp,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "Subir FlashPlan",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Diálogos
+        if (showSuccessDialog) {
+            ModernDialog(
+                title = "¡Éxito!",
+                message = "Tu FlashPlan se ha creado correctamente",
+                confirmText = "Continuar",
+                onConfirm = {
+                    showSuccessDialog = false
+                    navigateToHome()
+                },
+                type = DialogType.Success
+            )
+        }
+
+        if (showErrorDialog) {
+            ModernDialog(
+                title = "Error",
+                message = errorMessage,
+                confirmText = "Entendido",
+                onConfirm = { showErrorDialog = false },
+                type = DialogType.Error
+            )
+        }
+
+        if (showExitDialog) {
+            ModernDialog(
+                title = "Confirmar salida",
+                message = "¿Estás seguro de que quieres salir? Se perderán los cambios no guardados.",
+                confirmText = "Salir",
+                dismissText = "Cancelar",
+                onConfirm = {
+                    showExitDialog = false
+                    navigateToHome()
+                },
+                onDismiss = { showExitDialog = false },
+                type = DialogType.Warning
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingContent() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(48.dp),
+            color = NightTheme.Primary,
+            strokeWidth = 4.dp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Procesando imagen...",
+            color = NightTheme.OnSurfaceVariant,
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun SuccessContent(imageUrl: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "FlashPlan creado",
+            modifier = Modifier
+                .size(200.dp)
+                .clip(RoundedCornerShape(16.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "FlashPlan creado",
+            color = NightTheme.Success,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun SelectedImageContent(imageUri: Uri, context: android.content.Context) {
+    val bitmap = remember(imageUri) {
+        context.contentResolver.openInputStream(imageUri)?.use {
+            BitmapFactory.decodeStream(it)
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            painter = BitmapPainter(bitmap.asImageBitmap()),
+            contentDescription = "Imagen seleccionada",
+            modifier = Modifier
+                .size(200.dp)
+                .clip(RoundedCornerShape(16.dp)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Text(
+            text = "Error al cargar imagen",
+            color = NightTheme.Error,
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun EmptyStateContent(glowAlpha: Float, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
+            .padding(20.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .background(
+                    color = NightTheme.Primary.copy(alpha = glowAlpha),
+                    shape = CircleShape
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = LocalIndication.current
+                ) { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Agregar imagen",
+                modifier = Modifier.size(40.dp),
+                tint = Color.White
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Toca para agregar\nuna imagen",
+            color = NightTheme.OnSurfaceVariant,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 20.sp
+        )
+    }
+}
+
+enum class DialogType {
+    Success, Error, Warning
+}
+
+
+@Composable
+private fun ModernDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    dismissText: String? = null,
+    onConfirm: () -> Unit,
+    onDismiss: (() -> Unit)? = null,
+    type: DialogType
+) {
+    val iconColor = when (type) {
+        DialogType.Success -> NightTheme.Success
+        DialogType.Error -> NightTheme.Error
+        DialogType.Warning -> NightTheme.Secondary
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss ?: {},
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = when (type) {
+                        DialogType.Success -> Icons.Default.Check
+                        DialogType.Error -> Icons.Default.Close
+                        DialogType.Warning -> Icons.Default.Warning
+                    },
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    color = NightTheme.OnSurface,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Text(
+                text = message,
+                color = NightTheme.OnSurfaceVariant,
+                lineHeight = 22.sp
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = iconColor
+                )
+            ) {
+                Text(
+                    text = confirmText,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = dismissText?.let { text ->
+            {
+                TextButton(
+                    onClick = onDismiss ?: {},
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = NightTheme.OnSurfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = text,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        },
+        containerColor = NightTheme.Surface,
+        shape = RoundedCornerShape(16.dp)
+    )
+}

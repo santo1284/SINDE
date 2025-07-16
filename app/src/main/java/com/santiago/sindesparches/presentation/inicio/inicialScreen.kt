@@ -1,6 +1,7 @@
 package com.santiago.sindesparches.presentation.inicio
 
 import android.util.Log
+import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,7 +9,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,13 +20,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
@@ -43,10 +58,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.facebook.AccessToken
 import com.facebook.CallbackManager
@@ -92,6 +110,7 @@ fun InicialScreen(
     var isLoading by remember { mutableStateOf(false) }
     var forgotPasswordDialog by remember { mutableStateOf(false) }
     var resetPasswordEmail by remember { mutableStateOf("") }
+    var validationMessage by remember { mutableStateOf("") }
 
     // Configurar Manager de Facebook
     val callbackManager = remember { CallbackManager.Factory.create() }
@@ -119,6 +138,17 @@ fun InicialScreen(
         }
     }
 
+    //colores dialog
+    val primaryBlue = Color(0xFF2196F3)
+    val aquaBlue = Color(0xFF00BCD4)
+    val neonYellow = Color(0xFFFFEB3B)
+    val vibrantPurple = Color(0xFF9C27B0)
+    val hotPink = Color(0xFFE91E63)
+    val darkBackground = Color(0xFF1A1A1A)
+    val cardBackground = Color(0xFF2D2D2D)
+
+
+
     // Función para procesar el usuario después de la autenticación
     // IMPORTANTE: Ahora es una función de nivel superior dentro del composable
     fun processUserAfterAuth(user: FirebaseUser?) {
@@ -128,6 +158,7 @@ fun InicialScreen(
             isLoading = false
             return
         }
+
 
         val uid = user.uid
         val userEmail = user.email ?: ""
@@ -166,6 +197,15 @@ fun InicialScreen(
                 errorMessage = "Error al acceder a los datos del perfil"
                 isLoading = false
             }
+    }
+
+    //launcher para verificar si el usuario ya habia inicado secion antes
+    LaunchedEffect(Unit) {
+        val user = auth.currentUser
+        if (user != null) {
+            isLoading = true
+            processUserAfterAuth(user)
+        }
     }
 
     // Función para manejar el token de Facebook
@@ -262,63 +302,254 @@ fun InicialScreen(
             )
         }
 
-        // Diálogo para restablecer contraseña
+        // Diálogo para restablecer contraseña - Diseño moderno y llamativo
         if (forgotPasswordDialog) {
-            AlertDialog(
-                onDismissRequest = { forgotPasswordDialog = false },
-                title = { Text("Restablecer contraseña") },
-                text = {
-                    Column{
-                        Text("Ingresa tu correo electrónico para recibir instrucciones")
+            Dialog(
+                onDismissRequest = { forgotPasswordDialog = false }
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = cardBackground
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Icono llamativo con gradiente
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(hotPink, vibrantPurple, primaryBlue),
+                                        radius = 100f
+                                    ),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Restablecer contraseña",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Título principal
+                        Text(
+                            text = "¿Olvidaste tu contraseña?",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            ),
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Subtítulo con degradado
+                        Text(
+                            text = "¡No te preocupes! Te ayudamos a recuperarla",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = aquaBlue,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Campo de email con diseño moderno
                         OutlinedTextField(
                             value = resetPasswordEmail,
                             onValueChange = { resetPasswordEmail = it },
-                            placeholder = { Text("Correo") },
+                            label = {
+                                Text(
+                                    "Correo electrónico",
+                                    color = aquaBlue
+                                )
+                            },
+                            placeholder = {
+                                Text(
+                                    "ejemplo@correo.com",
+                                    color = Color.Gray
+                                )
+                            },
                             singleLine = true,
-                            modifier = Modifier.padding(top = 8.dp)
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = "Email",
+                                    tint = aquaBlue
+                                )
+                            },
+                            trailingIcon = {
+                                if (resetPasswordEmail.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { resetPasswordEmail = "" }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Limpiar",
+                                            tint = Color.Gray
+                                        )
+                                    }
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = aquaBlue,
+                                unfocusedBorderColor = Color.Gray,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = aquaBlue
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        // Botón principal con gradiente
+                        Button(
+                            onClick = {
+                                if (resetPasswordEmail.isNotEmpty() &&
+                                    Patterns.EMAIL_ADDRESS.matcher(resetPasswordEmail).matches()) {
+
+                                    // Primero verificamos si el correo existe
+                                    auth.fetchSignInMethodsForEmail(resetPasswordEmail)
+                                        .addOnCompleteListener { task ->
+                                            if (task.isSuccessful) {
+                                                val signInMethods = task.result?.signInMethods
+
+                                                if (signInMethods.isNullOrEmpty()) {
+                                                    // El correo no está registrado
+                                                    errorMessage = "❌ Este correo no está registrado."
+                                                    forgotPasswordDialog = false
+                                                } else {
+                                                    // El correo existe, enviamos el email de restablecimiento
+                                                    auth.sendPasswordResetEmail(resetPasswordEmail)
+                                                        .addOnCompleteListener { resetTask ->
+                                                            if (resetTask.isSuccessful) {
+                                                                errorMessage = "✅ ¡Correo enviado! Revisa tu bandeja de entrada"
+                                                            } else {
+                                                                errorMessage = "❌ Error al enviar correo: ${resetTask.exception?.message}"
+                                                            }
+                                                            forgotPasswordDialog = false
+                                                        }
+                                                }
+                                            } else {
+                                                // Error al verificar el correo
+                                                errorMessage = "❌ Error al verificar el correo: ${task.exception?.message}"
+                                                forgotPasswordDialog = false
+                                            }
+                                        }
+                                } else {
+                                    errorMessage = "⚠️ Por favor, ingresa un correo válido"
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent
+                            ),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(hotPink, vibrantPurple, primaryBlue)
+                                        ),
+                                        shape = RoundedCornerShape(28.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Send,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Enviar instrucciones",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Botón cancelar moderno
+                        TextButton(
+                            onClick = { forgotPasswordDialog = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = aquaBlue,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Texto de ayuda adicional
+                        Text(
+                            text = "¿No recibes el correo? Revisa tu carpeta de spam",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
-                },
-                confirmButton = {
-                    Button(colors = ButtonDefaults.buttonColors(containerColor = boton_iniciar),
-                        onClick = {
-                        if (resetPasswordEmail.isNotEmpty()) {
-                            auth.sendPasswordResetEmail(resetPasswordEmail)
-                                .addOnCompleteListener { task ->
-                                    if (task.isSuccessful) {
-                                        errorMessage = "Se ha enviado un correo para restablecer tu contraseña"
-                                    } else {
-                                        errorMessage = "Error al enviar correo: ${task.exception?.message}"
-                                    }
-                                    forgotPasswordDialog = false
-                                }
-                        } else {
-                            errorMessage = "Ingresa un correo válido"
-                            forgotPasswordDialog = false
-                        }
-                    }) {
-                        Text("Enviar")
-                    }
-                },
-                dismissButton = {
-                    Button(colors = ButtonDefaults.buttonColors(containerColor = boton_iniciar),
-                        onClick = { forgotPasswordDialog = false }) {
-                        Text("Cancelar")
-                    }
                 }
-            )
+            }
         }
 
-        Spacer(modifier = Modifier.weight(0.8f))
+        Spacer(modifier = Modifier.weight(0.5f))
         Image(
             painter = painterResource(id = R.drawable.iniciosesion), contentDescription = "inicio",
             modifier = Modifier
                 .height(150.dp)
                 .width(300.dp)
         )
+        Spacer(modifier = Modifier.width(10.dp))
+
+
         Text(
-            "INICIAR SESIÓN", color = Color.White, fontSize = 30.sp,
-            textAlign = TextAlign.Center, fontFamily = FontFamily.Serif
+            "INICIAR SESIÓN",
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            fontSize = 42.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.SansSerif,
         )
 
         Spacer(modifier = Modifier.weight(0.2f))
@@ -326,7 +557,7 @@ fun InicialScreen(
         Column(
             modifier = Modifier
                 .height(140.dp)
-                .width(260.dp),
+                .width(280.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             OutlinedTextField(
@@ -496,8 +727,9 @@ fun InicialScreen(
             Text(
                 text = "INICIAR CON",
                 color = white,
-                fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.SansSerif,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
             Spacer(
@@ -571,7 +803,7 @@ fun InicialScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.bxl_gmail),
+                        painter = painterResource(R.drawable.bxl_google ),
                         contentDescription = "",
                         tint = gmail,
                         modifier = Modifier.padding(horizontal = 5.dp)
@@ -604,3 +836,6 @@ fun InicialScreen(
         Spacer(modifier = Modifier.weight(0.8f))
     }
 }
+
+
+

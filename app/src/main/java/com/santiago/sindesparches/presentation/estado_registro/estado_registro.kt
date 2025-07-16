@@ -2,9 +2,12 @@ package com.santiago.sindesparches.presentation.estado_registro
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,7 +29,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,16 +47,25 @@ import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.azul_comienzo
 import com.santiago.sindesparches.ui.theme.azul_final
 import com.santiago.sindesparches.ui.theme.azul_mitad
+import com.santiago.sindesparches.ui.theme.black
+import com.santiago.sindesparches.ui.theme.boton
+import com.santiago.sindesparches.ui.theme.boton_iniciar
 import com.santiago.sindesparches.ui.theme.boton_texto
 import com.santiago.sindesparches.ui.theme.white
 
 @Composable
-fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuario:String, onLogout: () -> Unit = {}){
+fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuario:String, onLogout: () -> Unit = {}) {
 
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.succes))
     val user = FirebaseAuth.getInstance().currentUser
     val nombreUsuario = user?.displayName
     var showDialog by remember { mutableStateOf(false) }
+
+    val aquaBlue = Color(0xFF00E5FF)
+    val neonYellow = Color(0xFFFFEB3B)
+    val darkBackground = Color(0xFF0A0A0A)
+    val hotPink = Color(0xFFFF1744)
+
     // Intercepta el botón de retroceso
     BackHandler {
         showDialog = true
@@ -85,65 +103,118 @@ fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuar
     }
 
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(azul_comienzo, azul_mitad, azul_final))),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Column(
-            modifier = Modifier
-                .width(290.dp)
-                .height(350.dp)
-                .background(color = boton_texto, shape = RoundedCornerShape(20.dp))
-                .border(2.dp, color = white, shape = RoundedCornerShape(20.dp)),
-            horizontalAlignment = Alignment.CenterHorizontally
-
-        ){
-            Spacer(modifier = Modifier.weight(0.2f))
-
-            Text(
-                text = if(nombreUsuario != null) "Bienvenido \n $nombreUsuario" else "Bienvenido \n $usuario",
-                color = white,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-
-            LottieAnimation(
-                composition = composition,
-                iterations = LottieConstants.IterateForever,
-                modifier = Modifier.size(150.dp)
-            )
-            Text(
-                text = "Su registro fue exitoso, comenzaremos a configurar tu perfil, no te preocupes solo es un paso mas ",
-                color = white,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(
-                    horizontal = 20.dp
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        darkBackground,
+                        Color(0xFF1A1A2E),
+                        Color(0xFF16213E)
+                    )
                 )
             )
-            Spacer(modifier = Modifier.weight(0.2f))
-        }
-
-        Spacer(modifier = Modifier.weight(0.5f))
-
-        Button(
-            onClick = { navigateToperfil() },
-            modifier = Modifier
-                .width(150.dp)
-                .height(50.dp)
+    ) {
+        // Elementos decorativos de fondo
+        Canvas(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(text = "aceptar")
+            // Círculos decorativos
+            drawCircle(
+                color = aquaBlue.copy(alpha = 0.1f),
+                radius = 150f,
+                center = Offset(size.width * 0.8f, size.height * 0.2f)
+            )
+            drawCircle(
+                color = hotPink.copy(alpha = 0.1f),
+                radius = 100f,
+                center = Offset(size.width * 0.2f, size.height * 0.7f)
+            )
+            drawCircle(
+                color = neonYellow.copy(alpha = 0.1f),
+                radius = 80f,
+                center = Offset(size.width * 0.9f, size.height * 0.8f)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Spacer(modifier = Modifier.weight(0.5f))
+
+            TextButton(
+                modifier = Modifier.align(Alignment.Start),
+                onClick = { showDialog = true }, // Mostrar el diálogo al hacer clic
+                colors = ButtonDefaults.buttonColors(containerColor = boton)
+            ) {
+                Icon(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(40.dp)
+                        .padding(start = 10.dp),
+                    painter = painterResource(id = R.drawable.bx_arrow_back),
+                    contentDescription = "Retroceder y eliminar perfil",
+                    tint = white,
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(0.2f))
+
+            Column(
+                modifier = Modifier
+                    .width(320.dp)
+                    .height(420.dp)
+                    .background(color = boton_texto, shape = RoundedCornerShape(20.dp))
+                    .border(2.dp, color = white, shape = RoundedCornerShape(20.dp)),
+                horizontalAlignment = Alignment.CenterHorizontally
+
+            ) {
+                Spacer(modifier = Modifier.weight(0.2f))
+
+                Text(
+                    text = if (nombreUsuario != null) "HOLA  \n \n $nombreUsuario" else "HOLA \n \n $usuario",
+                    color = white,
+                    fontSize = 35.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                LottieAnimation(
+                    composition = composition,
+                    iterations = LottieConstants.IterateForever,
+                    modifier = Modifier.size(200.dp)
+                )
+                Text(
+                    text = "Su registro fue exitoso, comenzaremos a configurar tu perfil, no te preocupes solo es un paso mas. ",
+                    color = white,
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(
+                        horizontal = 20.dp
+                    )
+                )
+                Spacer(modifier = Modifier.weight(0.2f))
+            }
+
+            Spacer(modifier = Modifier.weight(0.3f))
+
+            Button(
+                onClick = { navigateToperfil() },
+                modifier = Modifier
+                    .width(350.dp)
+                    .height(56.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = boton_texto)
+            ) {
+                Text(text = "aceptar", color = black)
+
+            }
+            Spacer(modifier = Modifier.weight(1f))
 
         }
-        Spacer(modifier = Modifier.weight(1f))
-
     }
 }
 

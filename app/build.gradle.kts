@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.androidx.compose.material)
+    implementation(libs.firebase.appcheck.playintegrity)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
