@@ -25,6 +25,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
 import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,27 +42,37 @@ fun NotificationsScreen(
 
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
-            isLoading = true
-            val notificationsQuery = db.collection("notifications")
-                .whereEqualTo("recipientId", currentUserId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .get()
-                .await()
+            try {
+                isLoading = true
+                Log.d("NotificationsScreen", "Fetching notifications for user: $currentUserId")
+                val notificationsQuery = db.collection("notifications")
+                    .whereEqualTo("recipientId", currentUserId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+                Log.d("NotificationsScreen", "Found ${notificationsQuery.documents.size} notifications")
 
-            val notificationsList = notificationsQuery.documents.mapNotNull { doc ->
-                val notification = doc.toObject<Notification>()?.copy(id = doc.id)
-                notification
+                val notificationsList = notificationsQuery.documents.mapNotNull { doc ->
+                    val notification = doc.toObject<Notification>()?.copy(id = doc.id)
+                    Log.d("NotificationsScreen", "Notification: $notification")
+                    notification
+                }
+
+                // Fetch sender profile images
+                val notificationsWithImages = notificationsList.map { notification ->
+                    Log.d("NotificationsScreen", "Fetching profile for sender: ${notification.senderId}")
+                    val senderDoc = db.collection("perfil").document(notification.senderId).get().await()
+                    val profileImageUrl = senderDoc.getString("profileImageUrl")
+                    Log.d("NotificationsScreen", "Profile image url: $profileImageUrl")
+                    notification.copy(senderProfileImageUrl = profileImageUrl)
+                }
+
+                notifications = notificationsWithImages
+                isLoading = false
+            } catch (e: Exception) {
+                Log.e("NotificationsScreen", "Error fetching notifications", e)
+                isLoading = false
             }
-
-            // Fetch sender profile images
-            val notificationsWithImages = notificationsList.map { notification ->
-                val senderDoc = db.collection("perfil").document(notification.senderId).get().await()
-                val profileImageUrl = senderDoc.getString("profileImageUrl")
-                notification.copy(senderProfileImageUrl = profileImageUrl)
-            }
-
-            notifications = notificationsWithImages
-            isLoading = false
         }
     }
 

@@ -66,7 +66,7 @@ fun UserProfileScreen(
     navigateToPlanDetail: (String) -> Unit = {},
     navigateToProfile: (String) -> Unit = {},
     navigateToMiPerfil: () -> Unit = {},
-
+    navigateToComments: (String) -> Unit = {},
     currentUserId: String
 ) {
     Log.d("UserProfileScreen", "Recibido userId: '$userId'")
@@ -272,6 +272,9 @@ fun UserProfileScreen(
                                         userPlans = userPlans.map {
                                             if (it.id == updatedPlan.id) updatedPlan else it
                                         }
+                                    },
+                                    onCommentClick = { planId ->
+                                        navigateToComments(planId)
                                     }
                                 )
                             }
@@ -407,7 +410,8 @@ private fun PlanCard(
     onClick: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     navigateToMiPerfil: () -> Unit,
-    onPlanUpdated: (Plan) -> Unit // Nuevo callback para actualizar el plan
+    onPlanUpdated: (Plan) -> Unit, // Nuevo callback para actualizar el plan
+    onCommentClick: (String) -> Unit
 ) {
     // Estado local del plan para actualizaciones inmediatas
     var localPlan by remember(plan.id) { mutableStateOf(plan) }
@@ -698,6 +702,21 @@ fun SocialInteractionsSection(
                     onCountClick = { } // No hace nada al presionar el contador
                 )
             }
+
+            // Botón de Comentarios
+            InteractionButton(
+                icon = Icons.Default.Comment,
+                count = 0, // Replace with actual comment count if available
+                label = "Comentar",
+                isActive = false,
+                activeColor = Color.Blue,
+                onIconClick = {
+                    plan.id?.let { onCommentClick(it) }
+                },
+                onCountClick = {
+                    plan.id?.let { onCommentClick(it) }
+                }
+            )
         }
     }
 

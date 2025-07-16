@@ -281,6 +281,9 @@ fun Navegacion(navController: NavHostController,
                 },
                 navigateToMiPerfil = {
                     navController.navigate("mi_perfil")
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
             )
         }
