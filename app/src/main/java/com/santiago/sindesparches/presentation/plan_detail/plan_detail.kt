@@ -58,35 +58,23 @@ fun PlanDetailScreen(
     db: FirebaseFirestore,
     navigateBack: () -> Unit,
     navigateToEdit: (String) -> Unit,
-    navigateToUserProfile: (String) -> Unit // Nuevo parámetro para navegar al perfil
+    navigateToUserProfile: (String) -> Unit,
+    navigateToChat: (String) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var plan by remember { mutableStateOf<Plan?>(null) }
-    var userProfile by remember { mutableStateOf<UserProfile?>(null) } // Estado para el perfil del usuario
-    var userProfileImageUrl by remember { mutableStateOf<String?>(null) } // URL de la imagen de perfil
+    var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
-
-    //contexto para abrir WhatsApp
     val context = LocalContext.current
 
-    //imagen desde firebase
-    var imagen_usuario by remember { mutableStateOf<String?>(null) }
-    val storage = FirebaseStorage.getInstance().reference
-    val storageRef = storage.child("profile_pictures/${plan?.userId}")
-    storageRef.downloadUrl.addOnSuccessListener { uri ->
-        imagen_usuario = uri.toString()
-    }.addOnSuccessListener {  }
-
-    // Cargar los detalles del plan al iniciar
     LaunchedEffect(planId) {
         coroutineScope.launch {
             try {
                 isLoading = true
                 plan = getPlanById(db, planId)
-                // Cargar información del perfil del usuario creador
                 plan?.userId?.let { userId ->
                     userProfile = getUserProfileById(db, userId)
                 }
@@ -101,327 +89,124 @@ fun PlanDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(plan?.title ?: "Detalles del Plan") },
+                title = { Text(plan?.title ?: "Detalles del Plan", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.Close, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                 },
                 actions = {
-                    // Solo mostrar opciones de edición si el usuario es el creador
                     if (plan?.userId == auth.currentUser?.uid) {
                         IconButton(onClick = { navigateToEdit(planId) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar Plan")
+                            Icon(Icons.Default.Edit, contentDescription = "Editar Plan", tint = Color.White)
                         }
                         IconButton(onClick = { showDeleteConfirmation = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar Plan")
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar Plan", tint = Color.White)
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(black)) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Black
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(azul, azul_mitad, Purple),
-                        start = Offset(Float.POSITIVE_INFINITY, 0f),
-                        end = Offset(0f, Float.POSITIVE_INFINITY)
-                    )
-                )
+                .background(Color.Black)
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (errorMessage != null) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = errorMessage ?: "Error desconocido",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                try {
-                                    errorMessage = null
-                                    isLoading = true
-                                    plan = getPlanById(db, planId)
-                                    plan?.userId?.let { userId ->
-                                        userProfile = getUserProfileById(db, userId)
-                                    }
-                                    isLoading = false
-                                } catch (e: Exception) {
-                                    errorMessage = "Error al cargar el plan: ${e.message}"
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Reintentar")
-                    }
-                }
-            } else if (plan == null) {
-                Text(
-                    text = "No se encontró el plan",
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp)
-                )
-            } else {
-
-                // Contenido del detalle del plan
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    // Información del usuario creador
-                    userProfile?.let { profile ->
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .clickable {
-                                    // ✅ VALIDAR que tengamos userId antes de navegar
-                                    plan?.userId?.let { userId ->
-                                        if (userId.isNotBlank()) {
-                                            Log.d("PlanDetail", "Navegando al perfil de usuario: $userId")
-                                            navigateToUserProfile(userId)
-                                        } else {
-                                            Log.e("PlanDetail", "UserId del plan está vacío")
-                                        }
-                                    } ?: Log.e("PlanDetail", "Plan o userId es null")
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Imagen de perfil redondeada
-                                AsyncImage(
-                                    model = imagen_usuario ?: R.drawable.bxs_user, // Placeholder si no hay imagen
-                                    contentDescription = "Foto de perfil",
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = "Creado por",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = profile.nombre ?: "Usuario",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                // Icono para indicar que es clickable
-                                Icon(
-                                    Icons.Default.KeyboardArrowRight,
-                                    contentDescription = "Ver perfil",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Imágenes del plan
+                // Error handling UI
+            } else if (plan != null) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     if (plan!!.imageUrls.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp)
-                        ) {
-                            LazyRow(
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(plan!!.imageUrls) { imageUrl ->
-                                    AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = "Imagen del plan",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillParentMaxHeight()
-                                            .width(400.dp)
-                                    )
-                                }
+                        LazyRow(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                            items(plan!!.imageUrls) { imageUrl ->
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Imagen del plan",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillParentMaxWidth()
+                                )
                             }
                         }
                     }
-
-                    // Información detallada del plan
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        // Título
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = plan!!.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
-
-
-
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Fecha y hora
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.DateRange,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = formatDate(plan!!.date),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = plan!!.timeString,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-
-                        // Ubicación
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = plan!!.location,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-
+                        InfoRow(icon = Icons.Default.DateRange, text = formatDate(plan!!.date))
+                        InfoRow(icon = Icons.Default.Star, text = plan!!.timeString)
+                        InfoRow(icon = Icons.Default.LocationOn, text = plan!!.location)
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Descripción
                         Text(
                             text = "Descripción",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ) {
-                            Text(
-                                text = plan!!.description,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Fecha de creación
                         Text(
-                            text = "Publicado el ${formatFullDate(plan!!.createdAt)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = plan!!.description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 8.dp)
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Botón de WhatsApp - Solo se muestra si enableWhatsapp es true
+                        userProfile?.let { profile ->
+                            Row(
+                                modifier = Modifier.clickable { navigateToUserProfile(plan!!.userId) }.padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = profile.profileImageUrl,
+                                    contentDescription = "Foto de perfil",
+                                    modifier = Modifier.size(48.dp).clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("Creado por", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                    Text(
+                                        profile.nombre ?: "Usuario",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
                         if (plan!!.enableWhatsapp == true && plan!!.phoneNumber != null) {
-                            val message = "Hola, estoy interesado en el plan: ${plan!!.title}"
-                            val encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8.toString())
-                            val whatsappUrl = "https://api.whatsapp.com/send?phone=${plan!!.phoneNumber}&text=$encodedMessage"
-
                             Button(
                                 onClick = {
+                                    val message = "Hola, estoy interesado en el plan: ${plan!!.title}"
+                                    val encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8.toString())
+                                    val whatsappUrl = "https://api.whatsapp.com/send?phone=${plan!!.phoneNumber}&text=$encodedMessage"
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(whatsappUrl))
                                     try {
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("WhatsApp no instalado")
-                                        }
+                                        coroutineScope.launch { snackbarHostState.showSnackbar("WhatsApp no instalado") }
                                     }
                                 },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF25D366) // Color verde de WhatsApp
-                                )
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    // Aquí deberías añadir un icono de WhatsApp
-                                    // Puedes usar un icono personalizado o alguno similar de Material Icons
-                                    Icon(
-                                        Icons.Default.Info,
-                                        contentDescription = "WhatsApp",
-                                        tint = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Contactar por WhatsApp")
-                                }
+                                Text("Contactar por WhatsApp", color = Color.White)
                             }
+                        }
+                        Button(
+                            onClick = { navigateToChat(planId) },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        ) {
+                            Text("Abrir chat del plan")
                         }
                     }
                 }
@@ -429,39 +214,38 @@ fun PlanDetailScreen(
         }
     }
 
-    // Diálogo de confirmación para eliminar
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Eliminar plan") },
-            text = { Text("¿Estás seguro de que quieres eliminar este plan? Esta acción no se puede deshacer.") },
+            text = { Text("¿Estás seguro de que quieres eliminar este plan?") },
             confirmButton = {
                 Button(
                     onClick = {
                         coroutineScope.launch {
                             try {
                                 deletePlan(db, planId)
-                                snackbarHostState.showSnackbar("Plan eliminado correctamente")
+                                snackbarHostState.showSnackbar("Plan eliminado")
                                 navigateBack()
                             } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Error al eliminar el plan: ${e.message}")
+                                snackbarHostState.showSnackbar("Error al eliminar el plan")
                             }
-                            showDeleteConfirmation = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Eliminar")
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Eliminar") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancelar") } }
         )
+    }
+}
+
+@Composable
+fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodyLarge, color = Color.White)
     }
 }
 

@@ -27,6 +27,8 @@ import com.santiago.sindesparches.presentation.perfil.PerfilScreen
 import com.santiago.sindesparches.presentation.perfilusuario.UserProfileScreen
 import com.santiago.sindesparches.presentation.plan_detail.PlanDetailScreen
 import com.santiago.sindesparches.presentation.publicaciones.publicacion_screen
+import com.santiago.sindesparches.presentation.chat.ChatScreen
+import com.santiago.sindesparches.presentation.notificaciones.NotificacionesScreen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
 
 
@@ -99,8 +101,37 @@ fun Navegacion(navController: NavHostController,
                 ,
                 navigateToParticipar = {
                     navController.navigate("participar")
+                },
+                navigateToNotificaciones = {
+                    navController.navigate("notificaciones")
                 }
+            )
+        }
 
+        composable(
+            route = "chat/{planId}",
+            arguments = listOf(
+                navArgument("planId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val planId = backStackEntry.arguments?.getString("planId") ?: ""
+            ChatScreen(
+                planId = planId,
+                auth = auth,
+                db = db,
+                navigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable("notificaciones") {
+            NotificacionesScreen(
+                auth = auth,
+                db = db,
+                navigateToPlanDetail = { planId ->
+                    navController.navigate("plan_detail/$planId")
+                }
             )
         }
 
@@ -229,7 +260,9 @@ fun Navegacion(navController: NavHostController,
                 navigateToUserProfile = { userID ->
                     navController.navigate("perfilusuario/$userID")
                 },
-
+                navigateToChat = { planId ->
+                    navController.navigate("chat/$planId")
+                }
             )
         }
         composable(

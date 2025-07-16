@@ -128,61 +128,43 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Estados para los campos del formulario
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
-
-    // Estado para el DatePicker
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
     var selectedDate by remember { mutableStateOf<Long?>(null) }
     var formattedDate by remember { mutableStateOf("") }
-
-    // Estado para el TimePicker
     var showTimePicker by remember { mutableStateOf(false) }
     val timePickerState = rememberTimePickerState()
     var selectedTime by remember { mutableStateOf("") }
-
-    // Estado para las imágenes
     val selectedImages = remember { mutableStateListOf<Uri>() }
     var isLoading by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
 
-    // Galería de imágenes launcher
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            // No sobrepasar el máximo de 5 imágenes
             val remainingSlots = 5 - selectedImages.size
             if (remainingSlots > 0) {
-                val newImages = uris.take(remainingSlots)
-                selectedImages.addAll(newImages)
+                selectedImages.addAll(uris.take(remainingSlots))
             }
         }
     }
 
-    // boton de whatsapp
     var enableWhatsapp by remember { mutableStateOf(false) }
     val currentUserId = auth.currentUser?.uid ?: ""
     var phoneNumber by remember { mutableStateOf("") }
     var isLoadingNumero by remember { mutableStateOf(true) }
 
-    // Cargar número de teléfono del usuario desde Firebase
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             try {
-                val snapshot = db.collection("perfil")
-                    .document(currentUserId)
-                    .get()
-                    .await()
-
+                val snapshot = db.collection("perfil").document(currentUserId).get().await()
                 phoneNumber = snapshot.getString("celular") ?: "No registrado"
             } catch (e: Exception) {
                 phoneNumber = "Error al cargar"
-                Log.e("UserProfile", "Error loading phone", e)
             } finally {
                 isLoadingNumero = false
             }
@@ -192,7 +174,7 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear Plan") },
+                title = { Text("Crear Plan", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (formHasContent(title, description, location, selectedDate, selectedImages)) {
@@ -201,12 +183,14 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                             navigateToHome()
                         }
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color.Black
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -216,238 +200,59 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Título del plan
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Nombre del plan") },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            // Descripción
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descripción") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                maxLines = 5
-            )
-
-            // Fecha
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = formattedDate,
-                    onValueChange = { },
-                    label = { Text("Fecha") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                    modifier = Modifier.weight(1f),
-                    readOnly = true
-                )
-
+            OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Nombre del plan") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth().height(120.dp), maxLines = 5)
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = formattedDate, onValueChange = {}, label = { Text("Fecha") }, modifier = Modifier.weight(1f), readOnly = true)
                 Spacer(modifier = Modifier.width(8.dp))
-
-                Button(onClick = { showDatePicker = true }) {
-                    Text("Seleccionar")
-                }
+                Button(onClick = { showDatePicker = true }) { Text("Seleccionar") }
             }
-
-            // Hora
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = selectedTime,
-                    onValueChange = { },
-                    label = { Text("Hora") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                    modifier = Modifier.weight(1f),
-                    readOnly = true
-                )
-
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = selectedTime, onValueChange = {}, label = { Text("Hora") }, modifier = Modifier.weight(1f), readOnly = true)
                 Spacer(modifier = Modifier.width(8.dp))
-
-                Button(onClick = { showTimePicker = true }) {
-                    Text("Seleccionar")
-                }
+                Button(onClick = { showTimePicker = true }) { Text("Seleccionar") }
             }
-
-            // Ubicación
-            OutlinedTextField(
-                value = location,
-                onValueChange = { location = it },
-                label = { Text("Ubicación") },
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            // Sección para cargar imágenes
-            Text(
-                text = "Imágenes (1-5)",
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                ),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Imágenes seleccionadas
+            OutlinedTextField(value = location, onValueChange = { location = it }, label = { Text("Ubicación") }, modifier = Modifier.fillMaxWidth())
+            Text("Imágenes (1-5)", style = TextStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White), modifier = Modifier.padding(vertical = 8.dp))
+            FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 selectedImages.forEachIndexed { index, uri ->
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                    ) {
-                        AsyncImage(
-                            model = uri,
-                            contentDescription = "Imagen seleccionada $index",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        // Botón para eliminar imagen
-                        IconButton(
-                            onClick = { selectedImages.removeAt(index) },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(24.dp)
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
-                        ) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "Eliminar imagen",
-                                modifier = Modifier.size(16.dp)
-                            )
+                    Box(modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp))) {
+                        AsyncImage(model = uri, contentDescription = "Imagen seleccionada $index", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        IconButton(onClick = { selectedImages.removeAt(index) }, modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)) {
+                            Icon(Icons.Default.Clear, contentDescription = "Eliminar imagen", modifier = Modifier.size(16.dp))
                         }
                     }
                 }
-
-                // Botón para agregar más imágenes (solo si hay menos de 5)
                 if (selectedImages.size < 5) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(
-                                BorderStroke(1.dp, Color.Gray),
-                                RoundedCornerShape(8.dp)
-                            )
-                            .clickable { galleryLauncher.launch("image/*") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Agregar imagen",
-                            modifier = Modifier.size(32.dp)
-                        )
+                    Box(modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)).border(BorderStroke(1.dp, Color.Gray), RoundedCornerShape(8.dp)).clickable { galleryLauncher.launch("image/*") }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, contentDescription = "Agregar imagen", modifier = Modifier.size(32.dp), tint = Color.White)
                     }
                 }
             }
-
             if (selectedImages.isEmpty()) {
-                Text(
-                    text = "Debes seleccionar al menos una imagen",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                Text("Debes seleccionar al menos una imagen", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
             }
-
-            // Sección de WhatsApp con Card para destacarla
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Título de la sección de WhatsApp
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.bxl_whatsapp),
-                            contentDescription = "WhatsApp",
-                            modifier = Modifier.size(24.dp),
-                            tint = Color(0xFF25D366) // Color oficial de WhatsApp
-                        )
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color.DarkGray)) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.bxl_whatsapp), contentDescription = "WhatsApp", modifier = Modifier.size(24.dp), tint = Color(0xFF25D366))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Contacto por WhatsApp",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Text("Contacto por WhatsApp", style = MaterialTheme.typography.titleMedium, color = Color.White)
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Estado de carga del número
                     if (isLoadingNumero) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cargando número de contacto...")
-                        }
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
                     } else {
-                        // Número de teléfono
-                        Text(
-                            text = "Tu número: $phoneNumber",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        // Checkbox para habilitar WhatsApp
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Checkbox(
-                                checked = enableWhatsapp,
-                                onCheckedChange = { enableWhatsapp = it }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (enableWhatsapp)
-                                    "Los usuarios podrán contactarte por WhatsApp"
-                                else
-                                    "Permitir que los usuarios te contacten por WhatsApp",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                        Text("Tu número: $phoneNumber", style = MaterialTheme.typography.bodyMedium, color = Color.White)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = enableWhatsapp, onCheckedChange = { enableWhatsapp = it })
+                            Text("Permitir que los usuarios te contacten por WhatsApp", style = MaterialTheme.typography.bodyMedium, color = Color.White)
                         }
-
-                        // Mensaje informativo
                         if (phoneNumber == "No registrado" || phoneNumber == "Error al cargar") {
-                            Text(
-                                text = "Para habilitar el contacto por WhatsApp, actualiza tu número en tu perfil",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                            Text("Para habilitar el contacto por WhatsApp, actualiza tu número en tu perfil", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón de publicar
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -458,7 +263,6 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                                 if (currentUser != null) {
                                     val planId = UUID.randomUUID().toString()
                                     val imageUrls = uploadImagesToFirebase(context, selectedImages, currentUser.uid, planId)
-
                                     val plan = Plan(
                                         id = planId,
                                         userId = currentUser.uid,
@@ -472,7 +276,6 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                                         enableWhatsapp = enableWhatsapp,
                                         phoneNumber = if (enableWhatsapp) phoneNumber else ""
                                     )
-
                                     savePlanToFirestore(db, plan)
                                     snackbarHostState.showSnackbar("¡Plan publicado con éxito!")
                                     navigateToHome()
@@ -486,15 +289,10 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
-                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank()
+                enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() && description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank()
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
                     Text("Publicar Plan")
                 }
@@ -502,7 +300,6 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
         }
     }
 
-    // DatePicker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
@@ -514,89 +311,41 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                         formattedDate = sdf.format(Date(dateMillis))
                     }
                     showDatePicker = false
-                }) {
-                    Text("Confirmar")
-                }
+                }) { Text("Confirmar") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") } }
         ) {
             DatePicker(state = datePickerState)
         }
     }
 
-    // TimePicker Dialog
     if (showTimePicker) {
         Dialog(onDismissRequest = { showTimePicker = false }) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Seleccionar hora",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
+                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Seleccionar hora", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(24.dp))
-
                     TimePicker(state = timePickerState)
-
                     Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showTimePicker = false }) {
-                            Text("Cancelar")
-                        }
-
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
                         TextButton(onClick = {
-                            val hour = timePickerState.hour
-                            val minute = timePickerState.minute
-                            val formattedHour = hour.toString().padStart(2, '0')
-                            val formattedMinute = minute.toString().padStart(2, '0')
-                            selectedTime = "$formattedHour:$formattedMinute"
+                            selectedTime = "${timePickerState.hour.toString().padStart(2, '0')}:${timePickerState.minute.toString().padStart(2, '0')}"
                             showTimePicker = false
-                        }) {
-                            Text("Confirmar")
-                        }
+                        }) { Text("Confirmar") }
                     }
                 }
             }
         }
     }
 
-    // Diálogo de confirmación para salir
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text("Confirmar salida") },
             text = { Text("¿Estás seguro de que quieres salir? Se perderán los cambios no guardados.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showExitDialog = false
-                        navigateToHome()
-                    }
-                ) {
-                    Text("Salir")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showExitDialog = false }
-                ) {
-                    Text("Cancelar")
-                }
-            }
+            confirmButton = { TextButton(onClick = { showExitDialog = false; navigateToHome() }) { Text("Salir") } },
+            dismissButton = { TextButton(onClick = { showExitDialog = false }) { Text("Cancelar") } }
         )
     }
 }

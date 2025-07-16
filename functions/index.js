@@ -56,6 +56,18 @@ exports.sendLikeNotification = functions.firestore
     // Enviar la notificación
     try {
       await admin.messaging().sendToDevice(fcmToken, payload);
+      // Guardar la notificación en Firestore
+      await admin.firestore().collection("notifications").add({
+        recipientId: creatorId,
+        senderId: userId,
+        senderName: userName,
+        type: "like",
+        planId: planId,
+        planTitle: planData.nombre,
+        message: `${userName} le ha dado me gusta a tu plan: ${planData.nombre}`,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        read: false,
+      });
     } catch (error) {
       console.error("Error sending notification:", error);
     }
@@ -114,6 +126,18 @@ exports.sendParticipantNotification = functions.firestore
     // Enviar la notificación
     try {
       await admin.messaging().sendToDevice(fcmToken, payload);
+      // Guardar la notificación en Firestore
+      await admin.firestore().collection("notifications").add({
+        recipientId: creatorId,
+        senderId: userId,
+        senderName: userName,
+        type: "participate",
+        planId: planId,
+        planTitle: planData.nombre,
+        message: `${userName} se ha unido a tu plan: ${planData.nombre}`,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        read: false,
+      });
     } catch (error) {
       console.error("Error sending notification:", error);
     }
