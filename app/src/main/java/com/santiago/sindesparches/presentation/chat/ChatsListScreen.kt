@@ -101,7 +101,8 @@ fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (Str
         LazyColumn {
             items(conversations.value) { conversation ->
                 ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
-                    navigateToChat(conversation.planId)
+                    // Navegar al chat con la conversación específica
+                    navigateToChat(conversation.id)
                 })
             }
         }
@@ -145,7 +146,7 @@ fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (
         LazyColumn {
             items(conversations.value) { conversation ->
                 ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
-                    navigateToChat(conversation.planId)
+                    navigateToChat(conversation.id)
                 })
             }
         }
@@ -174,9 +175,10 @@ fun ConversationItem(conversation: Conversation, db: FirebaseFirestore, currentU
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val imageUrl = if (plan?.userId == currentUserId) otherUser?.profileImageUrl else plan?.imageUrls?.firstOrNull()
         Image(
-            painter = rememberAsyncImagePainter(model = otherUser?.profileImageUrl),
-            contentDescription = "Foto de perfil",
+            painter = rememberAsyncImagePainter(model = imageUrl),
+            contentDescription = "Imagen",
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape),
@@ -184,8 +186,13 @@ fun ConversationItem(conversation: Conversation, db: FirebaseFirestore, currentU
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(text = otherUser?.nombre ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
-            Text(text = plan?.title ?: "", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            if (plan?.userId == currentUserId) {
+                Text(text = plan?.title ?: "", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                Text(text = otherUser?.nombre ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
+            } else {
+                Text(text = plan?.title ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
+                Text(text = otherUser?.nombre ?: "", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            }
             Text(text = conversation.lastMessage?.message ?: "No hay mensajes", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         }
     }
