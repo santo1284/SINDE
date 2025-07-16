@@ -64,7 +64,13 @@ fun CommentsScreen(
 
         val commentsWithImages = commentsList.map { comment ->
             val userDoc = db.collection("perfil").document(comment.userId).get().await()
-            val profileImageUrl = userDoc.getString("profileImageUrl")
+            var profileImageUrl = userDoc.getString("profileImageUrl")
+            try {
+                val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference.child("profile_pictures/${comment.userId}")
+                profileImageUrl = storageRef.downloadUrl.await().toString()
+            } catch (e: Exception) {
+                // Use the profileImageUrl from Firestore as a fallback
+            }
             comment.copy(userProfileImageUrl = profileImageUrl)
         }
 
@@ -107,7 +113,13 @@ fun CommentsScreen(
 
                 val commentsWithImages = commentsList.map { c ->
                     val uDoc = db.collection("perfil").document(c.userId).get().await()
-                    val pImageUrl = uDoc.getString("profileImageUrl")
+                    var pImageUrl = uDoc.getString("profileImageUrl")
+                    try {
+                        val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference.child("profile_pictures/${c.userId}")
+                        pImageUrl = storageRef.downloadUrl.await().toString()
+                    } catch (e: Exception) {
+                        // Use the profileImageUrl from Firestore as a fallback
+                    }
                     c.copy(userProfileImageUrl = pImageUrl)
                 }
 
