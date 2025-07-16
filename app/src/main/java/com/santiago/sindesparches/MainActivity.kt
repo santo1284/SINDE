@@ -57,6 +57,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        obtenerYAlmacenarTokenFCM()
+    }
+
+    private fun obtenerYAlmacenarTokenFCM() {
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            val userId = auth.currentUser?.uid
+            if (userId != null && token != null) {
+                db.collection("usuarios").document(userId).update("fcmToken", token)
+            }
+        }
     }
 }
 
