@@ -80,7 +80,8 @@ fun megustascreen(
     navigatehome: () -> Unit,
     navigateToUserProfile: (String) -> Unit = {},
     navigateToDetail_Plan: (String) -> Unit = {},
-    navigateToMiPerfil: () -> Unit = {}
+    navigateToMiPerfil: () -> Unit = {},
+    navigateToComments: (String) -> Unit = {}
 ) {
     val currentUserId = auth.currentUser?.uid ?: ""
     val context = LocalContext.current
@@ -291,7 +292,8 @@ fun megustascreen(
                                 onPlanRemoved = {
                                     // Remover el plan de la lista si ya no le gusta
                                     reloadData()
-                                }
+                                },
+                                navigateToComments = navigateToComments
                             )
                         }
                     }
@@ -312,7 +314,8 @@ fun PlanCardLiked(
     navigateToUserProfile: (String) -> Unit,
     navigateToMiPerfil: () -> Unit,
     onPlanUpdated: (Plan) -> Unit,
-    onPlanRemoved: () -> Unit
+    onPlanRemoved: () -> Unit,
+    navigateToComments: (String) -> Unit
 ) {
     val isOwner = plan.userId == currentUserId
 
@@ -756,6 +759,25 @@ fun PlanCardLiked(
                             color = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
+                        )
+                    }
+
+                    // Botón Comentarios
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = { navigateToComments(localPlan.id) }
+                        ) {
+                            Icon(
+                                Icons.Default.Comment,
+                                contentDescription = "Comentarios",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Text(
+                            text = "Comentar",
+                            color = Color.White,
+                            fontSize = 12.sp
                         )
                     }
                 }

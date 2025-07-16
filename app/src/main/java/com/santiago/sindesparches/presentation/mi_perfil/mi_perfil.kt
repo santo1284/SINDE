@@ -95,8 +95,8 @@ fun MiPerfilScreen(
     onLogout: () -> Unit = {},
     navigateToPlanDetail: (String) -> Unit,
     navigateToProfile: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit
-
+    navigateToMiPerfil: () -> Unit,
+    navigateToComments: (String) -> Unit
 ) {
     var perfilUsuario by remember { mutableStateOf<PerfilUsuario?>(null) }
     var flashPlans by remember { mutableStateOf<List<FlashPlan>>(emptyList()) }
@@ -728,7 +728,10 @@ fun MiPerfilScreen(
                                         showParticipantsDialog = true
                                     }
                                 },
-                                currentUserId = auth.currentUser?.uid ?: ""
+                                currentUserId = auth.currentUser?.uid ?: "",
+                                onCommentClick = { planId ->
+                                    navigateToComments(planId)
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -972,7 +975,8 @@ fun PlanCard(
     onShareClick: (String) -> Unit,
     onLikesDialogClick: (String) -> Unit,
     onParticipantsDialogClick: (String) -> Unit,
-    currentUserId: String
+    currentUserId: String,
+    onCommentClick: (String) -> Unit
 ) {
     val isLiked = plan.likes.contains(currentUserId)
     val isParticipating = plan.participants.contains(currentUserId)
@@ -1151,6 +1155,16 @@ fun PlanCard(
                                 }
                         },
                         onCountClick = { /* No hace nada para compartir */ }
+                    )
+
+                    // Botón de Comentarios
+                    ImprovedInteractiveButton(
+                        icon = Icons.Default.Comment,
+                        count = 0, // Replace with actual comment count if available
+                        isActive = false,
+                        activeColor = Color(0xFF2196F3), // Azul
+                        onIconClick = { onCommentClick(plan.id) },
+                        onCountClick = { onCommentClick(plan.id) }
                     )
                 }
             }

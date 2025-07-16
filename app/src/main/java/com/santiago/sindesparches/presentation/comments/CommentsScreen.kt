@@ -35,7 +35,8 @@ fun CommentsScreen(
     planId: String,
     db: FirebaseFirestore,
     auth: FirebaseAuth,
-    navigateBack: () -> Unit
+    navigateBack: () -> Unit,
+    navigateToUserProfile: (String) -> Unit
 ) {
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     var newCommentText by remember { mutableStateOf("") }
@@ -142,7 +143,8 @@ fun CommentsScreen(
                     items(comments) { comment ->
                         CommentItem(
                             comment = comment,
-                            isPlanOwner = comment.userId == planOwnerId
+                            isPlanOwner = comment.userId == planOwnerId,
+                            onProfileClick = { navigateToUserProfile(comment.userId) }
                         )
                     }
                 }
@@ -168,7 +170,11 @@ fun CommentsScreen(
 }
 
 @Composable
-fun CommentItem(comment: Comment, isPlanOwner: Boolean) {
+fun CommentItem(
+    comment: Comment,
+    isPlanOwner: Boolean,
+    onProfileClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,7 +197,8 @@ fun CommentItem(comment: Comment, isPlanOwner: Boolean) {
                 contentDescription = "Foto de perfil",
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .clickable { onProfileClick() },
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(16.dp))

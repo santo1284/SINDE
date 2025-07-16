@@ -182,10 +182,11 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
-
             )
-
         }
 
         composable("publicaciones") {
@@ -322,6 +323,9 @@ fun Navegacion(navController: NavHostController,
                     navController.navigate("plan_detail/$planId")},
                 navigateToMiPerfil = {
                     navController.navigate("mi_perfil")
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
             )
         }
@@ -337,8 +341,10 @@ fun Navegacion(navController: NavHostController,
                     navController.navigate("plan_detail/$planId")},
                 navigateToMiPerfil = {
                     navController.navigate("mi_perfil")
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
-
             )
         }
 
@@ -371,6 +377,9 @@ fun Navegacion(navController: NavHostController,
                 auth = auth,
                 navigateBack = {
                     navController.popBackStack()
+                },
+                navigateToUserProfile = { userId ->
+                    navController.navigate("perfilusuario/$userId")
                 }
             )
         }
