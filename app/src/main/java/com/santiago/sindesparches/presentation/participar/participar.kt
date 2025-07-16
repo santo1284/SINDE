@@ -56,7 +56,8 @@ data class Plan(
     val likes: List<String>? = null,
     val participants: List<String>? = null,
     val shares: Int = 0,
-    val createdAt: Long? = null
+    val createdAt: Long? = null,
+    val commentCount: Int = 0
 )
 
 // Data class para perfiles de usuario
@@ -784,14 +785,14 @@ fun PlanCardParticipating(
                             onClick = { navigateToComments(localPlan.id) }
                         ) {
                             Icon(
-                                Icons.Default.Comment,
+                                painter = painterResource(id = R.drawable.ic_comment),
                                 contentDescription = "Comentarios",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                         Text(
-                            text = "Comentar",
+                            text = formatCount(localPlan.commentCount),
                             color = Color.White,
                             fontSize = 12.sp
                         )

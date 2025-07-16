@@ -705,8 +705,8 @@ fun SocialInteractionsSection(
 
             // Botón de Comentarios
             InteractionButton(
-                icon = Icons.Default.Comment,
-                count = 0, // Replace with actual comment count if available
+                icon = painterResource(id = R.drawable.ic_comment),
+                count = plan.commentCount,
                 label = "Comentar",
                 isActive = false,
                 activeColor = Color.Blue,
@@ -1206,6 +1206,7 @@ data class Plan(
     val phoneNumber: String? = null,
     val likes: List<String> = emptyList(),
     val participants: List<String> = emptyList(),
-    val shares: Int = 0
+    val shares: Int = 0,
+    val commentCount: Int = 0
 )
 

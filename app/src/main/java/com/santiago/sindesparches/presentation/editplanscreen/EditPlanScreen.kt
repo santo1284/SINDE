@@ -55,7 +55,8 @@ data class Plan(
     val createdAt: Long = 0L,
     val updatedAt: Long? = null,
     val enableWhatsapp: Boolean = false,
-    val phoneNumber: String = ""
+    val phoneNumber: String = "",
+    val commentCount: Int = 0
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

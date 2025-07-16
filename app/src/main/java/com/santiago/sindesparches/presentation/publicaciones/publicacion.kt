@@ -119,6 +119,7 @@ data class Plan(
     val likes: List<String>? = emptyList(),        // IDs de usuarios que dieron like
     val participants: List<String>? = emptyList(), // IDs de usuarios que participan
     val shares: Int = 0,
+    val commentCount: Int = 0
 )
 
 

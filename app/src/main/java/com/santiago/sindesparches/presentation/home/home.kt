@@ -1602,14 +1602,14 @@ fun PlanCard(
                             onClick = { navigateToComments(plan.id) }
                         ) {
                             Icon(
-                                Icons.Default.Comment,
+                                painter = painterResource(id = R.drawable.ic_comment),
                                 contentDescription = "Comentarios",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                         Text(
-                            text = "Comentar",
+                            text = formatCount(plan.commentCount),
                             color = Color.White,
                             fontSize = 12.sp
                         )

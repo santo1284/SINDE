@@ -84,7 +84,8 @@ data class Plan(
     val likes: List<String> = emptyList(),
     val participants: List<String> = emptyList(),
     val shares: Int = 0,
-    val createdAt: Any? = null
+    val createdAt: Any? = null,
+    val commentCount: Int = 0
 )
 
 @Composable
@@ -1159,8 +1160,8 @@ fun PlanCard(
 
                     // Botón de Comentarios
                     ImprovedInteractiveButton(
-                        icon = Icons.Default.Comment,
-                        count = 0, // Replace with actual comment count if available
+                        icon = painterResource(id = R.drawable.ic_comment),
+                        count = plan.commentCount,
                         isActive = false,
                         activeColor = Color(0xFF2196F3), // Azul
                         onIconClick = { onCommentClick(plan.id) },
