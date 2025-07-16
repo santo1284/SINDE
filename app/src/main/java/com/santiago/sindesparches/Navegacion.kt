@@ -28,6 +28,7 @@ import com.santiago.sindesparches.presentation.perfilusuario.UserProfileScreen
 import com.santiago.sindesparches.presentation.plan_detail.PlanDetailScreen
 import com.santiago.sindesparches.presentation.publicaciones.publicacion_screen
 import com.santiago.sindesparches.presentation.chat.ChatScreen
+import com.santiago.sindesparches.presentation.chat.ChatsListScreen
 import com.santiago.sindesparches.presentation.notificaciones.NotificacionesScreen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
 
@@ -104,6 +105,9 @@ fun Navegacion(navController: NavHostController,
                 },
                 navigateToNotificaciones = {
                     navController.navigate("notificaciones")
+                },
+                navigateToChatsList = {
+                    navController.navigate("chatslist")
                 }
             )
         }
@@ -365,6 +369,19 @@ fun Navegacion(navController: NavHostController,
                     navController.navigate("mi_perfil")
                 }
 
+            )
+        }
+
+        composable("chatslist") {
+            ChatsListScreen(
+                auth = auth,
+                db = db,
+                navigateToChat = { planId ->
+                    navController.navigate("chat/$planId")
+                },
+                navigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 
