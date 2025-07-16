@@ -28,6 +28,8 @@ import com.santiago.sindesparches.presentation.perfilusuario.UserProfileScreen
 import com.santiago.sindesparches.presentation.plan_detail.PlanDetailScreen
 import com.santiago.sindesparches.presentation.publicaciones.publicacion_screen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
+import com.santiago.sindesparches.presentation.notifications.NotificationsScreen
+import com.santiago.sindesparches.presentation.comments.CommentsScreen
 
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -99,8 +101,13 @@ fun Navegacion(navController: NavHostController,
                 ,
                 navigateToParticipar = {
                     navController.navigate("participar")
+                },
+                navigateToNotifications = {
+                    navController.navigate("notifications")
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
-
             )
         }
 
@@ -332,6 +339,39 @@ fun Navegacion(navController: NavHostController,
                     navController.navigate("mi_perfil")
                 }
 
+            )
+        }
+
+        composable("notifications") {
+            NotificationsScreen(
+                db = db,
+                auth = auth,
+                navigateToPlanDetail = { planId ->
+                    navController.navigate("plan_detail/$planId")
+                },
+                navigateToUserProfile = { userId ->
+                    navController.navigate("perfilusuario/$userId")
+                },
+                navigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = "comments/{planId}",
+            arguments = listOf(
+                navArgument("planId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val planId = backStackEntry.arguments?.getString("planId") ?: ""
+            CommentsScreen(
+                planId = planId,
+                db = db,
+                auth = auth,
+                navigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 

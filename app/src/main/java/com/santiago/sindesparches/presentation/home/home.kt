@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -143,8 +144,9 @@ fun homeScreen(
     navigateToMiPerfil: () -> Unit = {},
     navigateToEditPlan: (String) -> Unit = {},
     navigateToMegusta: () -> Unit = {},
-    navigateToParticipar: () -> Unit = {}
-
+    navigateToParticipar: () -> Unit = {},
+    navigateToNotifications: () -> Unit = {},
+    navigateToComments: (String) -> Unit = {}
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
@@ -656,7 +658,7 @@ fun homeScreen(
                                             navigateToUserProfile = navigateToUserProfile,
                                             navigateToEditPlan = navigateToEditPlan,
                                             navigateToMiPerfil = navigateToMiPerfil,
-
+                                            navigateToComments = navigateToComments
                                         )
                                     }
                                 }
@@ -885,6 +887,12 @@ fun homeScreen(
                     Text("Participar")
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(onClick = navigateToNotifications) {
+                    Text("Notificaciones")
+                }
+
                 Button(
                     onClick = { showRightMenu = false },
                     modifier = Modifier.fillMaxWidth()
@@ -1009,7 +1017,8 @@ fun PlanCard(
     searchText: String = "",
     navigateToUserProfile: (String) -> Unit,
     navigateToEditPlan: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit // Agregar este parámetro
+    navigateToMiPerfil: () -> Unit, // Agregar este parámetro
+    navigateToComments: (String) -> Unit
 ) {
     val isOwner = plan.userId == currentUserId
 
@@ -1580,6 +1589,27 @@ fun PlanCard(
                         }
                         Text(
                             text = formatCount(shares),
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Botón Comentarios
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconButton(
+                            onClick = { navigateToComments(plan.id) }
+                        ) {
+                            Icon(
+                                Icons.Default.Comment,
+                                contentDescription = "Comentarios",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Text(
+                            text = "Comentar",
                             color = Color.White,
                             fontSize = 12.sp
                         )
