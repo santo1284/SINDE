@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
@@ -37,44 +36,50 @@ fun ChatScreen(
     var newMessage by remember { mutableStateOf("") }
     val userId = auth.currentUser?.uid
 
-    // Move the function outside of LaunchedEffect
+    var conversationId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(planId) {
+        val planOwnerId = getPlanOwnerId(db, planId)
+        val participants = listOfNotNull(userId, planOwnerId).sorted()
+
+        if (userId != null && planOwnerId != null) {
+            val conversationQuery = db.collection("conversations")
+                .whereEqualTo("planId", planId)
+                .whereEqualTo("participants", participants)
+                .limit(1)
+                .get()
+                .await()
+
+            if (conversationQuery.isEmpty) {
+                val newConversation = Conversation(planId = planId, participants = participants)
+                val docRef = db.collection("conversations").add(newConversation).await()
+                conversationId = docRef.id
+            } else {
+                conversationId = conversationQuery.documents.firstOrNull()?.id
+            }
+
+            conversationId?.let { convId ->
+                db.collection("conversations").document(convId).collection("messages")
+                    .orderBy("timestamp", Query.Direction.ASCENDING)
+                    .addSnapshotListener { snapshot, _ ->
+                        snapshot?.let {
+                            val messageList = it.documents.mapNotNull { doc ->
+                                doc.toObject(ChatMessage::class.java)?.copy(id = doc.id)
+                            }
+                            messages.clear()
+                            messages.addAll(messageList)
+                        }
+                    }
+            }
+        }
+    }
+
     suspend fun getPlanOwnerId(db: FirebaseFirestore, planId: String): String? {
         return try {
             val planDoc = db.collection("planes").document(planId).get().await()
             planDoc.getString("userId")
         } catch (e: Exception) {
             null
-        }
-    }
-
-    LaunchedEffect(planId) {
-        val participants = listOfNotNull(userId, getPlanOwnerId(db, planId)).sorted()
-        val chatQuery = db.collection("chats")
-            .whereEqualTo("planId", planId)
-            .whereEqualTo("participants", participants)
-            .limit(1)
-            .get()
-            .await()
-
-        if (chatQuery.isEmpty) {
-            val newChat = Chat(planId = planId, participants = participants)
-            db.collection("chats").add(newChat).await()
-        }
-
-        // Set up message listener
-        val chatId = chatQuery.documents.firstOrNull()?.id
-        if (chatId != null) {
-            db.collection("chats").document(chatId).collection("messages")
-                .orderBy("timestamp", Query.Direction.ASCENDING)
-                .addSnapshotListener { snapshot, _ ->
-                    snapshot?.let {
-                        val messageList = it.documents.mapNotNull { doc ->
-                            doc.toObject(ChatMessage::class.java)?.copy(id = doc.id)
-                        }
-                        messages.clear()
-                        messages.addAll(messageList)
-                    }
-                }
         }
     }
 
@@ -117,36 +122,32 @@ fun ChatScreen(
                     placeholder = { Text("Escribe un mensaje...") }
                 )
                 IconButton(onClick = {
-                    if (newMessage.isNotBlank() && userId != null) {
+                    if (newMessage.isNotBlank() && userId != null && conversationId != null) {
                         coroutineScope.launch {
-                            val chatQuery = db.collection("chats").whereEqualTo("planId", planId).limit(1).get().await()
-                            val chatId = chatQuery.documents.firstOrNull()?.id
-                            if (chatId != null) {
-                                val userDoc = db.collection("perfil").document(userId).get().await()
-                                val userName = userDoc.getString("nombre") ?: "Usuario"
-                                val profilePictureUrl = userDoc.getString("profileImageUrl")
-                                val tempMessage = ChatMessage(
-                                    id = "temp_${System.currentTimeMillis()}",
-                                    senderId = userId,
-                                    senderName = userName,
-                                    message = newMessage,
-                                    timestamp = com.google.firebase.Timestamp.now(),
-                                    senderProfilePictureUrl = profilePictureUrl,
-                                    status = MessageStatus.SENDING
-                                )
-                                messages.add(tempMessage)
-                                val messageToSend = tempMessage.copy(id = "", status = MessageStatus.SENT)
-                                try {
-                                    db.collection("chats").document(chatId).collection("messages").add(messageToSend).await()
-                                    messages.remove(tempMessage)
-                                } catch (e: Exception) {
-                                    val index = messages.indexOf(tempMessage)
-                                    if (index != -1) {
-                                        messages[index] = tempMessage.copy(status = MessageStatus.FAILED)
-                                    }
+                            val userDoc = db.collection("perfil").document(userId).get().await()
+                            val userName = userDoc.getString("nombre") ?: "Usuario"
+                            val profilePictureUrl = userDoc.getString("profileImageUrl")
+                            val tempMessage = ChatMessage(
+                                id = "temp_${System.currentTimeMillis()}",
+                                senderId = userId,
+                                senderName = userName,
+                                message = newMessage,
+                                timestamp = com.google.firebase.Timestamp.now(),
+                                senderProfilePictureUrl = profilePictureUrl,
+                                status = MessageStatus.SENDING
+                            )
+                            messages.add(tempMessage)
+                            val messageToSend = tempMessage.copy(id = "", status = MessageStatus.SENT)
+                            try {
+                                db.collection("conversations").document(conversationId!!).collection("messages").add(messageToSend).await()
+                                messages.remove(tempMessage)
+                            } catch (e: Exception) {
+                                val index = messages.indexOf(tempMessage)
+                                if (index != -1) {
+                                    messages[index] = tempMessage.copy(status = MessageStatus.FAILED)
                                 }
-                                newMessage = ""
                             }
+                            newMessage = ""
                         }
                     }
                 }) {

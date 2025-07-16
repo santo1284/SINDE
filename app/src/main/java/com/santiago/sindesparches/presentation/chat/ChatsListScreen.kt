@@ -67,33 +67,42 @@ fun ChatsListScreen(
 @Composable
 fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
     val userId = auth.currentUser?.uid
-    val myPlans = remember { mutableStateOf<List<Plan>>(emptyList()) }
+    val conversations = remember { mutableStateOf<List<Conversation>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
 
     LaunchedEffect(userId) {
         if (userId != null) {
             isLoading.value = true
-            val plansQuery = db.collection("planes")
-                .whereEqualTo("userId", userId)
+            val conversationsQuery = db.collection("conversations")
+                .whereArrayContains("participants", userId)
                 .get()
                 .await()
-            val planList = plansQuery.documents.mapNotNull { doc ->
-                doc.toObject(Plan::class.java)?.copy(id = doc.id)
+            val conversationList = conversationsQuery.documents.mapNotNull { doc ->
+                val conversation = doc.toObject(Conversation::class.java)?.copy(id = doc.id)
+                val planId = conversation?.planId ?: ""
+                val planDoc = db.collection("planes").document(planId).get().await()
+                val plan = planDoc.toObject(Plan::class.java)
+                if (plan?.userId == userId) {
+                    conversation
+                } else {
+                    null
+                }
             }
-            myPlans.value = planList
+            conversations.value = conversationList
             isLoading.value = false
         }
     }
 
     if (isLoading.value) {
         CircularProgressIndicator()
-    } else if (myPlans.value.isEmpty()) {
-        Text("No has creado ningún plan.")
+    } else if (conversations.value.isEmpty()) {
+        Text("Nadie te ha escrito aún.")
     } else {
         LazyColumn {
-            items(myPlans.value) { plan ->
-                // Aquí deberías mostrar una lista de chats por cada plan
-                Text(text = plan.title, modifier = Modifier.clickable { navigateToChat(plan.id) })
+            items(conversations.value) { conversation ->
+                ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
+                    navigateToChat(conversation.planId)
+                })
             }
         }
     }
@@ -102,42 +111,41 @@ fun MyPlansChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (Str
 @Composable
 fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (String) -> Unit) {
     val userId = auth.currentUser?.uid
-    val myMessages = remember { mutableStateOf<List<Chat>>(emptyList()) }
+    val conversations = remember { mutableStateOf<List<Conversation>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
 
     LaunchedEffect(userId) {
         if (userId != null) {
             isLoading.value = true
-            val chatsQuery = db.collection("chats")
+            val conversationsQuery = db.collection("conversations")
                 .whereArrayContains("participants", userId)
                 .get()
                 .await()
-            val chatList = chatsQuery.documents.mapNotNull { doc ->
-                val chat = doc.toObject(Chat::class.java)?.copy(id = doc.id)
-                // Filtrar los chats donde el usuario no es el creador del plan
-                val planId = chat?.planId ?: ""
+            val conversationList = conversationsQuery.documents.mapNotNull { doc ->
+                val conversation = doc.toObject(Conversation::class.java)?.copy(id = doc.id)
+                val planId = conversation?.planId ?: ""
                 val planDoc = db.collection("planes").document(planId).get().await()
                 val plan = planDoc.toObject(Plan::class.java)
                 if (plan?.userId != userId) {
-                    chat
+                    conversation
                 } else {
                     null
                 }
             }
-            myMessages.value = chatList
+            conversations.value = conversationList
             isLoading.value = false
         }
     }
 
     if (isLoading.value) {
         CircularProgressIndicator()
-    } else if (myMessages.value.isEmpty()) {
+    } else if (conversations.value.isEmpty()) {
         Text("No has iniciado ninguna conversación.")
     } else {
         LazyColumn {
-            items(myMessages.value) { chat ->
-                ChatItem(chat = chat, db = db, onChatClick = {
-                    navigateToChat(chat.planId)
+            items(conversations.value) { conversation ->
+                ConversationItem(conversation = conversation, db = db, currentUserId = userId, onConversationClick = {
+                    navigateToChat(conversation.planId)
                 })
             }
         }
@@ -145,24 +153,30 @@ fun MyMessagesChats(auth: FirebaseAuth, db: FirebaseFirestore, navigateToChat: (
 }
 
 @Composable
-fun ChatItem(chat: Chat, db: FirebaseFirestore, onChatClick: () -> Unit) {
+fun ConversationItem(conversation: Conversation, db: FirebaseFirestore, currentUserId: String?, onConversationClick: () -> Unit) {
+    var otherUser by remember { mutableStateOf<com.santiago.sindesparches.presentation.plan_detail.UserProfile?>(null) }
     var plan by remember { mutableStateOf<Plan?>(null) }
 
-    LaunchedEffect(chat.planId) {
-        val planDoc = db.collection("planes").document(chat.planId).get().await()
+    LaunchedEffect(conversation) {
+        val otherUserId = conversation.participants.find { it != currentUserId }
+        if (otherUserId != null) {
+            val userDoc = db.collection("perfil").document(otherUserId).get().await()
+            otherUser = userDoc.toObject(com.santiago.sindesparches.presentation.plan_detail.UserProfile::class.java)
+        }
+        val planDoc = db.collection("planes").document(conversation.planId).get().await()
         plan = planDoc.toObject(Plan::class.java)
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onChatClick() }
+            .clickable { onConversationClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
-            painter = rememberAsyncImagePainter(model = plan?.imageUrls?.firstOrNull()),
-            contentDescription = "Imagen del plan",
+            painter = rememberAsyncImagePainter(model = otherUser?.profileImageUrl),
+            contentDescription = "Foto de perfil",
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape),
@@ -170,9 +184,9 @@ fun ChatItem(chat: Chat, db: FirebaseFirestore, onChatClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(text = plan?.title ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
-            // Aquí podrías mostrar el último mensaje del chat
-            Text(text = "Último mensaje...", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(text = otherUser?.nombre ?: "Cargando...", style = MaterialTheme.typography.titleMedium)
+            Text(text = plan?.title ?: "", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(text = conversation.lastMessage?.message ?: "No hay mensajes", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         }
     }
 }
