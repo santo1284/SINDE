@@ -202,11 +202,14 @@ fun CommentsScreen(
                     onValueChange = { newCommentText = it },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Escribe un comentario...", color = Color.Gray) },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
                 IconButton(onClick = { addComment() }) {
