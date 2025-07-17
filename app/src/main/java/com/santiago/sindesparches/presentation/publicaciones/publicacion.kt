@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,6 +57,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
@@ -226,12 +228,17 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    textColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
                     cursorColor = Color.White,
-                    focusedBorderColor = Color(0xFF8A2BE2),
-                    unfocusedBorderColor = Color.Gray
+                    focusedIndicatorColor = Color(0xFF8A2BE2),
+                    unfocusedIndicatorColor = Color.Gray,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
+
+
             )
 
             // Descripción
@@ -244,12 +251,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                     .fillMaxWidth()
                     .height(120.dp),
                 maxLines = 5,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    textColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
                     cursorColor = Color.White,
-                    focusedBorderColor = Color(0xFF8A2BE2),
-                    unfocusedBorderColor = Color.Gray
+                    focusedIndicatorColor = Color(0xFF8A2BE2),
+                    unfocusedIndicatorColor = Color.Gray,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
+
             )
 
             // Fecha
@@ -264,12 +275,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                     leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
                     modifier = Modifier.weight(1f),
                     readOnly = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = Color.White,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White,
-                        focusedBorderColor = Color(0xFF8A2BE2),
-                        unfocusedBorderColor = Color.Gray
+                        focusedIndicatorColor = Color(0xFF8A2BE2),
+                        unfocusedIndicatorColor = Color.Gray,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
+
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -294,12 +309,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                     leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
                     modifier = Modifier.weight(1f),
                     readOnly = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = Color.White,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
                         cursorColor = Color.White,
-                        focusedBorderColor = Color(0xFF8A2BE2),
-                        unfocusedBorderColor = Color.Gray
+                        focusedIndicatorColor = Color(0xFF8A2BE2),
+                        unfocusedIndicatorColor = Color.Gray,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
+
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -320,12 +339,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    textColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
                     cursorColor = Color.White,
-                    focusedBorderColor = Color(0xFF8A2BE2),
-                    unfocusedBorderColor = Color.Gray
+                    focusedIndicatorColor = Color(0xFF8A2BE2),
+                    unfocusedIndicatorColor = Color.Gray,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
+
             )
 
             // Sección para cargar imágenes

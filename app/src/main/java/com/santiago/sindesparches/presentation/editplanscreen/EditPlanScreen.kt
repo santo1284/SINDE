@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -161,11 +162,14 @@ fun PublicacionScreen(
                     label = { Text("Título", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
 
@@ -176,11 +180,14 @@ fun PublicacionScreen(
                     label = { Text("Descripción", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
 
@@ -194,11 +201,14 @@ fun PublicacionScreen(
                     leadingIcon = {
                         Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
 
@@ -220,11 +230,14 @@ fun PublicacionScreen(
                             Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha", tint = MaterialTheme.colorScheme.primary)
                         }
                     },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
 
@@ -236,13 +249,16 @@ fun PublicacionScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
                     )
                 )
 
@@ -319,11 +335,14 @@ fun PublicacionScreen(
                                         tint = Color(0xFF25D366)
                                     )
                                 },
-                                colors = TextFieldDefaults.outlinedTextFieldColors(
-                                    textColor = MaterialTheme.colorScheme.onSurface,
+                                colors = TextFieldDefaults.colors(
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                     cursorColor = MaterialTheme.colorScheme.primary,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
+                                    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent
                                 )
                             )
                         }
