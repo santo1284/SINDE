@@ -192,9 +192,6 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
-                },
-                navigateToComments = { planId ->
-                    navController.navigate("comments/$planId")
                 }
             )
         }
@@ -318,6 +315,9 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
 
             )

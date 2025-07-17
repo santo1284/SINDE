@@ -51,6 +51,7 @@ dependencies {
     implementation ("com.google.firebase:firebase-database-ktx")
     implementation(libs.firebase.analytics)
     implementation("io.coil-kt:coil-compose:2.2.2")
+    implementation("com.google.firebase:firebase-messaging-directboot:24.1.2")
 
     implementation ("com.facebook.android:facebook-login:16.2.0")
     implementation ("com.facebook.android:facebook-android-sdk:16.2.0")
