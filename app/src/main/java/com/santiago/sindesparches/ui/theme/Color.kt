@@ -34,3 +34,11 @@ val VegasNightSecondary = Color(0xFF00F0FF) // Cian Neón
 val VegasNightTertiary = Color(0xFF9400D3) // Violeta Neón
 val VegasNightOnSurface = Color(0xFFFFFFFF)
 val VegasNightOnSurfaceVariant = Color(0xFFBDBDBD)
+
+// Paleta de colores "Vibrant"
+val VibrantPrimary = Color(0xFFF92672) // Rosa
+val VibrantSecondary = Color(0xFFA6E22E) // Verde Lima
+val VibrantTertiary = Color(0xFF66D9EF) // Cian
+val VibrantBackground = Color(0xFF272822) // Gris oscuro
+val VibrantOnSurface = Color(0xFFF8F8F2) // Blanco roto
+val VibrantOnSurfaceVariant = Color(0xFF88846F) // Gris claro
