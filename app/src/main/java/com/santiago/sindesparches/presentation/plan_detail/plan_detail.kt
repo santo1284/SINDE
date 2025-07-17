@@ -47,7 +47,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.ui.res.painterResource
 import com.santiago.sindesparches.ui.theme.boton
 
 
@@ -310,7 +309,7 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Filled.DateRange,
+                                Icons.Filled.Event,
                                 contentDescription = null,
                                 tint = Color(0xFF8A2BE2)
                             )
@@ -327,7 +326,7 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.Settings,
+                                Icons.Filled.AccessTime,
                                 contentDescription = null,
                                 tint = Color(0xFF8A2BE2)
                             )

@@ -81,7 +81,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
@@ -824,7 +823,7 @@ fun homeScreen(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .offset(x = rightMenuOffset)
-                .width(250.dp)
+                .width(220.dp)
                 .fillMaxHeight()
                 .background(
                     Color(0xFF1A1A1A),
@@ -929,6 +928,8 @@ fun homeScreen(
                     .fillMaxSize()
                     .background(Color.Black)
                     .zIndex(10f)
+                    .clickable { showStory = false }
+                    .padding(top = 24.dp)
             ) {
                 AsyncImage(
                     model = currentStory!!.imageUrl,
@@ -1635,13 +1636,11 @@ fun PlanCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        if (plan.commentCount > 0) {
-                            Text(
-                                text = formatCount(plan.commentCount),
-                                color = Color.White,
-                                fontSize = 12.sp
-                            )
-                        }
+                        Text(
+                            text = formatCount(plan.commentCount),
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }

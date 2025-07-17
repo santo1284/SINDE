@@ -26,3 +26,11 @@ val facebook = Color(0xFF1877F2)
 val black = Color(0xFF000000)
 val gris = Color(0xFF888888)
 val azul_borde= Color(0xFF0094FF)
+
+// Nueva paleta de colores "Vegas Night"
+val VegasNightBackground = Color(0xFF0D0D0D)
+val VegasNightPrimary = Color(0xFFF00699) // Fucsia Neón
+val VegasNightSecondary = Color(0xFF00F0FF) // Cian Neón
+val VegasNightTertiary = Color(0xFF9400D3) // Violeta Neón
+val VegasNightOnSurface = Color(0xFFFFFFFF)
+val VegasNightOnSurfaceVariant = Color(0xFFBDBDBD)

@@ -104,6 +104,14 @@ fun CommentsScreen(
                     .add(comment)
                     .await()
 
+                // Increment comment count
+                val planRef = db.collection("planes").document(planId)
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(planRef)
+                    val newCommentCount = (snapshot.getLong("commentCount") ?: 0) + 1
+                    transaction.update(planRef, "commentCount", newCommentCount)
+                }.await()
+
                 // Notify plan owner
                 if (planOwnerId != null && planOwnerId != currentUserId) {
                     sendNotification(
@@ -149,14 +157,18 @@ fun CommentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Comentarios") },
+                title = { Text("Comentarios", color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -185,14 +197,20 @@ fun CommentsScreen(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
+                OutlinedTextField(
                     value = newCommentText,
                     onValueChange = { newCommentText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Escribe un comentario...") }
+                    placeholder = { Text("Escribe un comentario...", color = Color.Gray) },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
                 IconButton(onClick = { addComment() }) {
-                    Icon(Icons.Default.Send, contentDescription = "Enviar")
+                    Icon(Icons.Default.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -211,7 +229,7 @@ fun CommentItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPlanOwner) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+            containerColor = if (isPlanOwner) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Row(
@@ -237,7 +255,8 @@ fun CommentItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = comment.userName,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (isPlanOwner) {
                         Spacer(modifier = Modifier.width(8.dp))
@@ -254,7 +273,7 @@ fun CommentItem(
                         )
                     }
                 }
-                Text(text = comment.text)
+                Text(text = comment.text, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

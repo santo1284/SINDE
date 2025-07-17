@@ -162,30 +162,30 @@ fun megustascreen(
                 title = {
                     Text(
                         "Planes que me gustan",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = navigatehome) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver"
+                            contentDescription = "Volver",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.Black)
         ) {
             when {
                 isLoading -> {
@@ -276,25 +276,30 @@ fun megustascreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(likedPlans, key = { it.id }) { plan ->
-                            PlanCardLiked(
-                                plan = plan,
+                            com.santiago.sindesparches.presentation.home.PlanCard(
+                                plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                    id = plan.id,
+                                    userId = plan.userId,
+                                    title = plan.title,
+                                    description = plan.description,
+                                    date = 0,
+                                    timeString = plan.timeString,
+                                    location = plan.location,
+                                    imageUrls = plan.imageUrls,
+                                    likes = plan.likes,
+                                    participants = plan.participants,
+                                    shares = plan.shares,
+                                    createdAt = System.currentTimeMillis(),
+                                    commentCount = plan.commentCount
+                                ),
                                 onPlanClick = { navigateToDetail_Plan(plan.id) },
                                 currentUserId = currentUserId,
                                 db = db,
                                 coroutineScope = coroutineScope,
                                 context = context,
                                 navigateToUserProfile = navigateToUserProfile,
+                                navigateToEditPlan = {},
                                 navigateToMiPerfil = navigateToMiPerfil,
-                                onPlanUpdated = { updatedPlan ->
-                                    // Actualizar el plan en la lista local
-                                    likedPlans = likedPlans.map {
-                                        if (it.id == updatedPlan.id) updatedPlan else it
-                                    }
-                                },
-                                onPlanRemoved = {
-                                    // Remover el plan de la lista si ya no le gusta
-                                    reloadData()
-                                },
                                 navigateToComments = navigateToComments
                             )
                         }
@@ -305,524 +310,6 @@ fun megustascreen(
     }
 }
 
-@Composable
-fun PlanCardLiked(
-    plan: Plan,
-    onPlanClick: () -> Unit,
-    currentUserId: String,
-    db: FirebaseFirestore,
-    coroutineScope: kotlinx.coroutines.CoroutineScope,
-    context: Context,
-    navigateToUserProfile: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit,
-    onPlanUpdated: (Plan) -> Unit,
-    onPlanRemoved: () -> Unit,
-    navigateToComments: (String) -> Unit
-) {
-    val isOwner = plan.userId == currentUserId
-
-    // Estados para las interacciones (usando los valores actuales del plan)
-    var localPlan by remember(plan.id) { mutableStateOf(plan) }
-
-    // Estados para los diálogos
-    var showLikesDialog by remember { mutableStateOf(false) }
-    var showParticipantsDialog by remember { mutableStateOf(false) }
-
-    // Actualizar cuando cambie el plan
-    LaunchedEffect(plan) {
-        localPlan = plan
-    }
-
-    // Estados para el perfil del usuario que publicó
-    var imagenUsuario by remember { mutableStateOf<String?>(null) }
-    var userName by remember { mutableStateOf<String?>(null) }
-    var isLoadingUser by remember { mutableStateOf(true) }
-
-    // Cargar información del usuario que publicó
-    LaunchedEffect(localPlan.userId) {
-        try {
-            isLoadingUser = true
-            val userDoc = db.collection("perfil").document(localPlan.userId).get().await()
-            userName = userDoc.getString("nombre") ?: "Usuario"
-
-            val storage = FirebaseStorage.getInstance().reference
-            val storageRef = storage.child("profile_pictures/${localPlan.userId}")
-
-            try {
-                val uri = storageRef.downloadUrl.await()
-                imagenUsuario = uri.toString()
-            } catch (e: Exception) {
-                imagenUsuario = userDoc.getString("profileImageUrl")
-            }
-
-            isLoadingUser = false
-        } catch (e: Exception) {
-            Log.e("PlanCardLiked", "Error al cargar perfil del usuario", e)
-            userName = "Usuario"
-            imagenUsuario = null
-            isLoadingUser = false
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPlanClick),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(2.dp, Color.Gray),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black)
-        ) {
-            // Header con información del usuario que publicó
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Imagen de perfil del usuario
-                Box(modifier = Modifier.size(40.dp)) {
-                    if (isLoadingUser) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        AsyncImage(
-                            model = imagenUsuario,
-                            contentDescription = "Foto de perfil",
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    width = 2.dp,
-                                    color = if (isOwner) MaterialTheme.colorScheme.primary else Color.Gray,
-                                    shape = CircleShape
-                                )
-                                .clickable {
-                                    if (!isOwner) navigateToUserProfile(localPlan.userId)
-                                },
-                            contentScale = ContentScale.Crop,
-                            error = painterResource(id = android.R.drawable.ic_menu_myplaces),
-                            placeholder = painterResource(id = android.R.drawable.ic_menu_myplaces)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Nombre del usuario
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = userName ?: "Cargando...",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    if (isOwner) {
-                        Text(
-                            text = "Mi Plan",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Timestamp del plan
-                Text(
-                    text = formatTimeAgo(localPlan.createdAt ?: System.currentTimeMillis()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
-                )
-            }
-
-            // Imágenes del plan
-            if (localPlan.imageUrls.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
-                    if (localPlan.imageUrls.size == 1) {
-                        AsyncImage(
-                            model = localPlan.imageUrls.first(),
-                            contentDescription = "Imagen del plan",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        val pagerState = rememberPagerState(pageCount = { localPlan.imageUrls.size })
-
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            AsyncImage(
-                                model = localPlan.imageUrls[page],
-                                contentDescription = "Imagen del plan ${page + 1}",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-
-                        // Indicadores de página
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            repeat(localPlan.imageUrls.size) { index ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (index == pagerState.currentPage) Color.White
-                                            else Color.White.copy(alpha = 0.5f)
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Información del plan
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                // Título
-                Text(
-                    text = localPlan.title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Fecha y hora
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.DateRange,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = formatDate(localPlan.date),
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Icon(
-                        Icons.Default.DateRange,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = localPlan.timeString,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Ubicación
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = localPlan.location,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Descripción
-                Text(
-                    text = localPlan.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Botones de interacción
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    // Botón Me Gusta
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        val isCurrentlyLiked = localPlan.likes?.contains(currentUserId) == true
-                                        val planRef = db.collection("planes").document(localPlan.id)
-
-                                        if (isCurrentlyLiked) {
-                                            // Quitar like
-                                            planRef.update("likes", FieldValue.arrayRemove(currentUserId)).await()
-
-                                            // Actualizar estado local
-                                            val newLikes = localPlan.likes?.minus(currentUserId) ?: emptyList()
-                                            val updatedPlan = localPlan.copy(likes = newLikes)
-                                            localPlan = updatedPlan
-                                            onPlanUpdated(updatedPlan)
-
-                                            // Si ya no le gusta, remover de la lista
-                                            if (newLikes.isEmpty() || !newLikes.contains(currentUserId)) {
-                                                onPlanRemoved()
-                                            }
-
-                                            Toast.makeText(context, "Ya no te gusta este plan", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            // Agregar like
-                                            planRef.update("likes", FieldValue.arrayUnion(currentUserId)).await()
-
-                                            // Actualizar estado local
-                                            val newLikes = (localPlan.likes ?: emptyList()) + currentUserId
-                                            val updatedPlan = localPlan.copy(likes = newLikes)
-                                            localPlan = updatedPlan
-                                            onPlanUpdated(updatedPlan)
-
-                                            Toast.makeText(context, "Te gusta este plan", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("PlanCardLiked", "Error al actualizar like", e)
-                                        Toast.makeText(context, "Error al actualizar", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Favorite,
-                                contentDescription = "Me gusta",
-                                tint = Color.Red,
-                                modifier = Modifier.size(20.dp)
-                            )
-
-                        }
-                        // Botón "Ver" para likes
-                            TextButton(
-                                onClick = { showLikesDialog = true },
-                            ) {
-                                Text(
-                                    text = formatCount(localPlan.likes?.size ?: 0),
-                                    color = white,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium,
-
-                                )
-
-                            }
-
-                    }
-
-                    // Botón Participar
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        val isCurrentlyParticipating = localPlan.participants?.contains(currentUserId) == true
-                                        val planRef = db.collection("planes").document(localPlan.id)
-
-                                        if (isCurrentlyParticipating) {
-                                            // Quitar participación
-                                            planRef.update("participants", FieldValue.arrayRemove(currentUserId)).await()
-
-                                            // Actualizar estado local
-                                            val newParticipants = localPlan.participants?.minus(currentUserId) ?: emptyList()
-                                            val updatedPlan = localPlan.copy(participants = newParticipants)
-                                            localPlan = updatedPlan
-                                            onPlanUpdated(updatedPlan)
-
-                                            Toast.makeText(context, "Ya no participas en este plan", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            // Agregar participación
-                                            planRef.update("participants", FieldValue.arrayUnion(currentUserId)).await()
-
-                                            // Actualizar estado local
-                                            val newParticipants = (localPlan.participants ?: emptyList()) + currentUserId
-                                            val updatedPlan = localPlan.copy(participants = newParticipants)
-                                            localPlan = updatedPlan
-                                            onPlanUpdated(updatedPlan)
-
-                                            Toast.makeText(context, "Ahora participas en este plan", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("PlanCardLiked", "Error al actualizar participación", e)
-                                        Toast.makeText(context, "Error al actualizar", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        ) {
-                            val isParticipating = localPlan.participants?.contains(currentUserId) == true
-                            Icon(
-                                if (isParticipating) Icons.Default.Check else Icons.Default.Add,
-                                contentDescription = "Participar",
-                                tint = if (isParticipating) Color.Green else Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        // Botón "Ver" para participantes
-                            TextButton(
-                                onClick = { showParticipantsDialog = true },
-                                modifier = Modifier.padding(start = 4.dp)
-                            ) {
-                                Text(
-                                    text = formatCount(localPlan.participants?.size ?: 0),
-                                    color = white,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                    }
-
-                    // Botón Compartir
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Spacer(modifier = Modifier.height(5.dp))
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        // Incrementar contador de shares
-                                        val planRef = db.collection("planes").document(localPlan.id)
-                                        planRef.update("shares", FieldValue.increment(1)).await()
-
-                                        // Actualizar estado local
-                                        val updatedPlan = localPlan.copy(shares = localPlan.shares + 1)
-                                        localPlan = updatedPlan
-                                        onPlanUpdated(updatedPlan)
-
-                                        // Crear intent para compartir
-                                        val shareText = """
-                                            ¡Mira este plan genial!
-                                            
-                                            📅 ${localPlan.title}
-                                            📍 ${localPlan.location}
-                                            🗓️ ${localPlan.date} - ${localPlan.timeString}
-                                            
-                                            ${localPlan.description}
-                                        """.trimIndent()
-
-                                        val shareIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, shareText)
-                                        }
-
-                                        context.startActivity(Intent.createChooser(shareIntent, "Compartir plan"))
-
-                                        Toast.makeText(context, "Plan compartido", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Log.e("PlanCardLiked", "Error al compartir", e)
-                                        Toast.makeText(context, "Error al compartir", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = "Compartir",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(5.dp) )
-                        Text(
-                            text = formatCount(localPlan.shares),
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-
-                    // Botón Comentarios
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = { navigateToComments(localPlan.id) }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_comment),
-                                contentDescription = "Comentarios",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Text(
-                            text = formatCount(localPlan.commentCount),
-                            color = Color.White,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    // Diálogo para mostrar usuarios que dieron "Me gusta"
-    if (showLikesDialog) {
-        UserListDialog(
-            title = "Les gusta este plan",
-            userIds = localPlan.likes ?: emptyList(),
-            db = db,
-            onDismiss = { showLikesDialog = false },
-            onUserClick = { userId ->
-                showLikesDialog = false
-                if (userId == currentUserId) {
-                    navigateToMiPerfil()
-                } else {
-                    navigateToUserProfile(userId)
-                }
-            }
-        )
-    }
-
-//  DIÁLOGO PARA LOS PARTICIPANTES
-    if (showParticipantsDialog) {
-       UserListDialog(
-            title = "Participantes del plan",
-            userIds = localPlan.participants ?: emptyList(),
-            db = db,
-            onDismiss = { showParticipantsDialog = false },
-            onUserClick = { userId ->
-                showParticipantsDialog = false
-                if (userId == currentUserId) {
-                    navigateToMiPerfil()
-                } else {
-                    navigateToUserProfile(userId)
-                }
-            }
-        )
-    }
-}
 
 @Composable
 fun UserListDialog(
