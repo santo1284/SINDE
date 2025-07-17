@@ -119,6 +119,7 @@ data class Plan(
     val likes: List<String>? = emptyList(),        // IDs de usuarios que dieron like
     val participants: List<String>? = emptyList(), // IDs de usuarios que participan
     val shares: Int = 0,
+    val commentCount: Int = 0
 )
 
 
@@ -192,7 +193,7 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear Plan") },
+                title = { Text("Crear Plan", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (formHasContent(title, description, location, selectedDate, selectedImages)) {
@@ -201,9 +202,12 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                             navigateToHome()
                         }
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF1a1a2e)
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -212,6 +216,11 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460))
+                    )
+                )
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -220,22 +229,34 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Nombre del plan") },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                label = { Text("Nombre del plan", color = Color.White) },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFFe94560),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Descripción
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Descripción") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                label = { Text("Descripción", color = Color.White) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
-                maxLines = 5
+                maxLines = 5,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFFe94560),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Fecha
@@ -246,15 +267,24 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 OutlinedTextField(
                     value = formattedDate,
                     onValueChange = { },
-                    label = { Text("Fecha") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("Fecha", color = Color.White) },
+                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.White) },
                     modifier = Modifier.weight(1f),
-                    readOnly = true
+                    readOnly = true,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedBorderColor = Color(0xFFe94560),
+                        unfocusedBorderColor = Color.Gray
+                    )
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = { showDatePicker = true }) {
+                Button(
+                    onClick = { showDatePicker = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                ) {
                     Text("Seleccionar")
                 }
             }
@@ -267,15 +297,24 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 OutlinedTextField(
                     value = selectedTime,
                     onValueChange = { },
-                    label = { Text("Hora") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("Hora", color = Color.White) },
+                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.White) },
                     modifier = Modifier.weight(1f),
-                    readOnly = true
+                    readOnly = true,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedBorderColor = Color(0xFFe94560),
+                        unfocusedBorderColor = Color.Gray
+                    )
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = { showTimePicker = true }) {
+                Button(
+                    onClick = { showTimePicker = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
+                ) {
                     Text("Seleccionar")
                 }
             }
@@ -284,10 +323,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
             OutlinedTextField(
                 value = location,
                 onValueChange = { location = it },
-                label = { Text("Ubicación") },
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                label = { Text("Ubicación", color = Color.White) },
+                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFFe94560),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Sección para cargar imágenes
@@ -295,7 +340,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 text = "Imágenes (1-5)",
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = Color.White
                 ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
@@ -372,7 +418,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.2f))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -391,7 +438,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Contacto por WhatsApp",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
                         )
                     }
 
@@ -403,15 +451,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cargando número de contacto...")
+                            Text("Cargando número de contacto...", color = Color.White)
                         }
                     } else {
                         // Número de teléfono
                         Text(
                             text = "Tu número: $phoneNumber",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White
                         )
 
                         // Checkbox para habilitar WhatsApp
@@ -421,7 +470,11 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                         ) {
                             Checkbox(
                                 checked = enableWhatsapp,
-                                onCheckedChange = { enableWhatsapp = it }
+                                onCheckedChange = { enableWhatsapp = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFFe94560),
+                                    uncheckedColor = Color.Gray
+                                )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -429,7 +482,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                                     "Los usuarios podrán contactarte por WhatsApp"
                                 else
                                     "Permitir que los usuarios te contacten por WhatsApp",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White
                             )
                         }
 
@@ -487,7 +541,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
-                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank()
+                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFe94560))
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

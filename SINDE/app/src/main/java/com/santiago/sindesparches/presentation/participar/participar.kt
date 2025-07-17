@@ -56,7 +56,8 @@ data class Plan(
     val likes: List<String>? = null,
     val participants: List<String>? = null,
     val shares: Int = 0,
-    val createdAt: Long? = null
+    val createdAt: Long? = null,
+    val commentCount: Int = 0
 )
 
 // Data class para perfiles de usuario
@@ -131,7 +132,8 @@ fun planesParticipoScreen(
                                 likes = doc.get("likes") as? List<String> ?: emptyList(),
                                 participants = doc.get("participants") as? List<String> ?: emptyList(),
                                 shares = (doc.getLong("shares") ?: 0).toInt(),
-                                createdAt = doc.getLong("createdAt")
+                                createdAt = doc.getLong("createdAt"),
+                                commentCount = (doc.getLong("commentCount") ?: 0).toInt()
                             )
                         } catch (e: Exception) {
                             Log.e("PlanesParticipoScreen", "Error parsing plan: ${doc.id}", e)
@@ -773,6 +775,29 @@ fun PlanCardParticipating(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                         )
+                    }
+                    // Botón Comentarios
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(modifier = Modifier.height(5.dp))
+                        IconButton(
+                            onClick = { /* TODO: Implementar acción de comentarios */ }
+                        ) {
+                            Icon(
+                                Icons.Default.Comment,
+                                contentDescription = "Comentarios",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(5.dp))
+                        if (localPlan.commentCount > 0) {
+                            Text(
+                                text = formatCount(localPlan.commentCount),
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
                     }
                 }
             }

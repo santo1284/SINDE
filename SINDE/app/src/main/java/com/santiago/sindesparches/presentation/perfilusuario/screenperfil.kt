@@ -108,6 +108,17 @@ fun UserProfileScreen(
         }
     }
 
+    // Botón Comentarios
+    InteractionButton(
+        icon = Icons.Default.Comment,
+        count = plan.commentCount,
+        label = "Comentarios",
+        isActive = false,
+        activeColor = Color.Gray,
+        onIconClick = { /* TODO: Implementar acción de comentarios */ },
+        onCountClick = { /* TODO: Implementar acción de comentarios */ }
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -1187,6 +1198,7 @@ data class Plan(
     val phoneNumber: String? = null,
     val likes: List<String> = emptyList(),
     val participants: List<String> = emptyList(),
-    val shares: Int = 0
+    val shares: Int = 0,
+    val commentCount: Int = 0
 )
 

@@ -22,6 +22,7 @@ import com.santiago.sindesparches.presentation.inicio.InicialScreen
 import com.santiago.sindesparches.presentation.loging.logingScreen
 import com.santiago.sindesparches.presentation.megusta.megustascreen
 import com.santiago.sindesparches.presentation.mi_perfil.MiPerfilScreen
+import com.santiago.sindesparches.presentation.notifications.NotificationScreen
 import com.santiago.sindesparches.presentation.participar.planesParticipoScreen
 import com.santiago.sindesparches.presentation.perfil.PerfilScreen
 import com.santiago.sindesparches.presentation.perfilusuario.UserProfileScreen
@@ -99,8 +100,10 @@ fun Navegacion(navController: NavHostController,
                 ,
                 navigateToParticipar = {
                     navController.navigate("participar")
+                },
+                navigateToNotifications = {
+                    navController.navigate("notifications")
                 }
-
             )
         }
 
@@ -332,6 +335,19 @@ fun Navegacion(navController: NavHostController,
                     navController.navigate("mi_perfil")
                 }
 
+            )
+        }
+
+        composable("notifications") {
+            NotificationScreen(
+                db = db,
+                auth = auth,
+                navigateToUserProfile = { userId ->
+                    navController.navigate("perfilusuario/$userId")
+                },
+                navigateToPlanDetail = { planId ->
+                    navController.navigate("plan_detail/$planId")
+                }
             )
         }
 

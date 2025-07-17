@@ -75,10 +75,13 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -143,8 +146,8 @@ fun homeScreen(
     navigateToMiPerfil: () -> Unit = {},
     navigateToEditPlan: (String) -> Unit = {},
     navigateToMegusta: () -> Unit = {},
-    navigateToParticipar: () -> Unit = {}
-
+    navigateToParticipar: () -> Unit = {},
+    navigateToNotifications: () -> Unit = {}
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
@@ -783,7 +786,7 @@ fun homeScreen(
                                             .clip(CircleShape)
                                             .border(
                                                 width = 2.dp,
-                                                color = if (seen) Color.Gray else Color.Magenta,
+                                                color = if (seen) Color(0xFF808080) else Color(0xFF8A2BE2),
                                                 shape = CircleShape
                                             ),
                                         contentScale = ContentScale.Crop,
@@ -816,80 +819,74 @@ fun homeScreen(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .offset(x = rightMenuOffset)
-                .width(200.dp)
-                .height(910.dp)
+                .width(250.dp)
+                .fillMaxHeight()
                 .background(
-                    Color.LightGray,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460))
+                    ),
                     shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                 )
-                .padding(10.dp)
+                .padding(16.dp)
                 .zIndex(2f)
         ) {
-            Column {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    "Menú derecho",
+                    "Menú",
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    color = Color.White,
+                    fontSize = 24.sp
                 )
 
-                Button(
-                    onClick = navigateToMiPerfil,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.Black
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+                // Perfil del usuario
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { navigateToMiPerfil() }
+                        .padding(vertical = 8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Imagen de perfil
-                        if (imagenUrl != null) {
-                            AsyncImage(
-                                model = imagenUrl,
-                                contentDescription = "Foto de perfil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                            )
-                        } else {
-                            // Imagen de respaldo o loader
-                            Box(
-                                modifier = Modifier
-                                    .size(55.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Gray)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // Nombre del usuario
-                        Text(
-                            text = nombreCorto ?: "Cargando...",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.Black // ✅ Cambiado a negro
+                    if (imagenUrl != null) {
+                        AsyncImage(
+                            model = imagenUrl,
+                            contentDescription = "Foto de perfil",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray)
                         )
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = nombreCorto ?: "Cargando...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Button(onClick = navigateToMegusta) {
-                    Text("Me Gusta")
-                }
+                // Botones de navegación
+                MenuItem(text = "Me Gusta", icon = Icons.Default.Favorite) { navigateToMegusta() }
+                MenuItem(text = "Participar", icon = Icons.Default.Check) { navigateToParticipar() }
+                MenuItem(text = "Notificaciones", icon = Icons.Default.Notifications) { navigateToNotifications() }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.weight(1f))
 
-                Button(onClick = navigateToParticipar) {
-                    Text("Participar")
-                }
-
-                Button(
-                    onClick = { showRightMenu = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cerrar")
+                // Botón de cerrar sesión
+                MenuItem(text = "Cerrar Sesión", icon = Icons.Default.ExitToApp) {
+                    auth.signOut()
+                    navigateToInicial()
                 }
             }
         }
@@ -903,58 +900,36 @@ fun homeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.95f))
+                    .background(Color.Black.copy(alpha = 0.9f))
                     .clickable { showStory = false }
                     .zIndex(10f),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Cuadro con información del usuario creador
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Información del usuario
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                            .clickable {
-                                navigateToUserProfile(currentStory!!.userId)
-                            },
-                        horizontalArrangement = Arrangement.Start,
+                            .clickable { navigateToUserProfile(currentStory!!.userId) },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Imagen del usuario
                         val userImageUrl = userProfileImages[currentStory!!.userId]
-
-                        if (userImageUrl != null && userImageUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = userImageUrl,
-                                contentDescription = "Imagen de perfil",
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop,
-                                error = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
-                            )
-                        } else {
-                            // Placeholder cuando no hay imagen
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Gray),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Usuario",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
+                        AsyncImage(
+                            model = userImageUrl,
+                            contentDescription = "Imagen de perfil",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
-
-                        // Nombre del usuario
                         Text(
                             text = currentStory!!.username,
                             color = Color.White,
@@ -967,7 +942,9 @@ fun homeScreen(
                     AsyncImage(
                         model = currentStory!!.imageUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(0.9f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentScale = ContentScale.Fit,
                         error = painterResource(id = android.R.drawable.ic_menu_gallery)
                     )
@@ -998,6 +975,29 @@ fun homeScreen(
         }
     }
 }
+
+@Composable
+fun MenuItem(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(icon, contentDescription = text)
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(text, fontSize = 16.sp)
+        }
+    }
+}
+
 @Composable
 fun PlanCard(
     plan: Plan,
@@ -1318,6 +1318,29 @@ fun PlanCard(
                             )
                         }
                     }
+
+                    // Botón Comentarios
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconButton(
+                            onClick = { /* TODO: Implementar acción de comentarios */ }
+                        ) {
+                            Icon(
+                                Icons.Default.Comment,
+                                contentDescription = "Comentarios",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        if (plan.commentCount > 0) {
+                            Text(
+                                text = formatCount(plan.commentCount),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1485,22 +1508,24 @@ fun PlanCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        Text(
-                            text = formatCount(likes),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = if (isLiked) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.clickable {
-                                if (likes > 0) {
-                                    coroutineScope.launch {
-                                        isLoadingLikes = true
-                                        likesUsers = getUserProfiles(plan.likes ?: emptyList())
-                                        isLoadingLikes = false
-                                        showLikesDialog = true
+                        if (likes > 0) {
+                            Text(
+                                text = formatCount(likes),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = if (isLiked) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.clickable {
+                                    if (likes > 0) {
+                                        coroutineScope.launch {
+                                            isLoadingLikes = true
+                                            likesUsers = getUserProfiles(plan.likes ?: emptyList())
+                                            isLoadingLikes = false
+                                            showLikesDialog = true
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
 
                     // Botón Participar
@@ -1532,22 +1557,24 @@ fun PlanCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        Text(
-                            text = formatCount(participants),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = if (isParticipating) FontWeight.Bold else FontWeight.Normal,
-                            modifier = Modifier.clickable {
-                                if (participants > 0) {
-                                    coroutineScope.launch {
-                                        isLoadingParticipants = true
-                                        participantsUsers = getUserProfiles(plan.participants ?: emptyList())
-                                        isLoadingParticipants = false
-                                        showParticipantsDialog = true
+                        if (participants > 0) {
+                            Text(
+                                text = formatCount(participants),
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = if (isParticipating) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.clickable {
+                                    if (participants > 0) {
+                                        coroutineScope.launch {
+                                            isLoadingParticipants = true
+                                            participantsUsers = getUserProfiles(plan.participants ?: emptyList())
+                                            isLoadingParticipants = false
+                                            showParticipantsDialog = true
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
 
                     // Botón Compartir
@@ -1578,11 +1605,13 @@ fun PlanCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        Text(
-                            text = formatCount(shares),
-                            color = Color.White,
-                            fontSize = 12.sp
-                        )
+                        if (shares > 0) {
+                            Text(
+                                text = formatCount(shares),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }

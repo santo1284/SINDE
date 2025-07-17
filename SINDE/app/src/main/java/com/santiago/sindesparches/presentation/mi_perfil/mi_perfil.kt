@@ -84,7 +84,8 @@ data class Plan(
     val likes: List<String> = emptyList(),
     val participants: List<String> = emptyList(),
     val shares: Int = 0,
-    val createdAt: Any? = null
+    val createdAt: Any? = null,
+    val commentCount: Int = 0
 )
 
 @Composable
@@ -229,7 +230,8 @@ fun MiPerfilScreen(
                                 is Long -> createdAt
                                 is com.google.firebase.Timestamp -> createdAt.toDate().time
                                 else -> null
-                            }
+                            },
+                            commentCount = (data["commentCount"] as? Long)?.toInt() ?: 0
                         )
 
                         Log.d("MiPerfil", "Plan: ${plan.title}, userId: ${plan.userId}, imageUrls: ${plan.imageUrls}")
@@ -1151,6 +1153,16 @@ fun PlanCard(
                                 }
                         },
                         onCountClick = { /* No hace nada para compartir */ }
+                    )
+
+                    // Botón de Comentarios
+                    ImprovedInteractiveButton(
+                        icon = Icons.Default.Comment,
+                        count = plan.commentCount,
+                        isActive = false,
+                        activeColor = Color.Gray,
+                        onIconClick = { /* TODO: Implementar navegación a comentarios */ },
+                        onCountClick = { /* TODO: Implementar navegación a comentarios */ }
                     )
                 }
             }

@@ -45,6 +45,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import com.santiago.sindesparches.ui.theme.boton
@@ -133,16 +134,15 @@ fun PlanDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(azul, azul_mitad, Purple),
-                        start = Offset(Float.POSITIVE_INFINITY, 0f),
-                        end = Offset(0f, Float.POSITIVE_INFINITY)
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460))
                     )
                 )
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color.White
                 )
             } else if (errorMessage != null) {
                 Column(
@@ -258,25 +258,18 @@ fun PlanDetailScreen(
 
                     // Imágenes del plan
                     if (plan!!.imageUrls.isNotEmpty()) {
-                        Box(
+                        HorizontalPager(
+                            pageCount = plan!!.imageUrls.size,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(300.dp)
-                        ) {
-                            LazyRow(
+                        ) { page ->
+                            AsyncImage(
+                                model = plan!!.imageUrls[page],
+                                contentDescription = "Imagen del plan",
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(plan!!.imageUrls) { imageUrl ->
-                                    AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = "Imagen del plan",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillParentMaxHeight()
-                                            .width(400.dp)
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
 
@@ -289,8 +282,9 @@ fun PlanDetailScreen(
                         // Título
                         Text(
                             text = plan!!.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
 
 
@@ -305,12 +299,13 @@ fun PlanDetailScreen(
                             Icon(
                                 Icons.Default.DateRange,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFFe94560)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = formatDate(plan!!.date),
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -321,12 +316,13 @@ fun PlanDetailScreen(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFFe94560)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.timeString,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -338,12 +334,13 @@ fun PlanDetailScreen(
                             Icon(
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFFe94560)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.location,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -353,7 +350,8 @@ fun PlanDetailScreen(
                         Text(
                             text = "Descripción",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -363,12 +361,13 @@ fun PlanDetailScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp),
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            color = Color.Black.copy(alpha = 0.2f)
                         ) {
                             Text(
                                 text = plan!!.description,
                                 style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
+                                modifier = Modifier.padding(16.dp),
+                                color = Color.White.copy(alpha = 0.8f)
                             )
                         }
 
@@ -378,7 +377,7 @@ fun PlanDetailScreen(
                         Text(
                             text = "Publicado el ${formatFullDate(plan!!.createdAt)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.Gray
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
