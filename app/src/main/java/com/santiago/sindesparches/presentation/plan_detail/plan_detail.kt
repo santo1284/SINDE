@@ -47,7 +47,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.ui.res.painterResource
 import com.santiago.sindesparches.ui.theme.boton
 
 
@@ -102,42 +101,35 @@ fun PlanDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(plan?.title ?: "Detalles del Plan") },
+                title = { Text(plan?.title ?: "Detalles del Plan", color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.Close, contentDescription = "Volver")
+                        Icon(Icons.Default.Close, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 },
                 actions = {
                     // Solo mostrar opciones de edición si el usuario es el creador
                     if (plan?.userId == auth.currentUser?.uid) {
                         IconButton(onClick = { navigateToEdit(planId) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar Plan")
+                            Icon(Icons.Default.Edit, contentDescription = "Editar Plan", tint = MaterialTheme.colorScheme.onSurface)
                         }
                         IconButton(onClick = { showDeleteConfirmation = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar Plan")
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar Plan", tint = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1A1A1A),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(Color.Black)) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(MaterialTheme.colorScheme.background)) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF1A1A1A), Color(0xFF2A2A2A), Color(0xFF1A1A1A))
-                    )
-                )
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -238,7 +230,8 @@ fun PlanDetailScreen(
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
 
@@ -297,7 +290,7 @@ fun PlanDetailScreen(
                             text = plan!!.title,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
 
@@ -310,15 +303,15 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Filled.DateRange,
+                                Icons.Filled.Event,
                                 contentDescription = null,
-                                tint = Color(0xFF8A2BE2)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = formatDate(plan!!.date),
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -327,15 +320,15 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Filled.Settings,
+                                Icons.Filled.AccessTime,
                                 contentDescription = null,
-                                tint = Color(0xFF8A2BE2)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.timeString,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -347,13 +340,13 @@ fun PlanDetailScreen(
                             Icon(
                                 Icons.Filled.Place,
                                 contentDescription = null,
-                                tint = Color(0xFF8A2BE2)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.location,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -364,7 +357,7 @@ fun PlanDetailScreen(
                             text = "Descripción",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -374,13 +367,13 @@ fun PlanDetailScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp),
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.Black.copy(alpha = 0.3f)
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                         ) {
                             Text(
                                 text = plan!!.description,
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.padding(16.dp),
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -416,7 +409,7 @@ fun PlanDetailScreen(
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF8A2BE2)
+                                    containerColor = MaterialTheme.colorScheme.secondary
                                 ),
                                 shape = RoundedCornerShape(50)
                             ) {
@@ -427,10 +420,10 @@ fun PlanDetailScreen(
                                     Icon(
                                         painter = painterResource(id = R.drawable.bxl_whatsapp),
                                         contentDescription = "WhatsApp",
-                                        tint = Color.White
+                                        tint = MaterialTheme.colorScheme.onSecondary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Contactar por WhatsApp", color = Color.White)
+                                    Text("Contactar por WhatsApp", color = MaterialTheme.colorScheme.onSecondary)
                                 }
                             }
                         }

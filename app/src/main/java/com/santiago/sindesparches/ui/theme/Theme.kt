@@ -12,17 +12,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = VegasNightPrimary,
-    secondary = VegasNightSecondary,
-    tertiary = VegasNightTertiary,
-    background = VegasNightBackground,
-    surface = VegasNightBackground,
-    onPrimary = VegasNightOnSurface,
-    onSecondary = VegasNightOnSurface,
-    onTertiary = VegasNightOnSurface,
-    onBackground = VegasNightOnSurface,
-    onSurface = VegasNightOnSurface,
-    onSurfaceVariant = VegasNightOnSurfaceVariant
+    primary = VibrantPrimary,
+    secondary = VibrantSecondary,
+    tertiary = VibrantTertiary,
+    background = VibrantBackground,
+    surface = VibrantBackground,
+    onPrimary = VibrantOnSurface,
+    onSecondary = VibrantOnSurface,
+    onTertiary = VibrantOnSurface,
+    onBackground = VibrantOnSurface,
+    onSurface = VibrantOnSurface,
+    onSurfaceVariant = VibrantOnSurfaceVariant
 )
 
 private val LightColorScheme = lightColorScheme(

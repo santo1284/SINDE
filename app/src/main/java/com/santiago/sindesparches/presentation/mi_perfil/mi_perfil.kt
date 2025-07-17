@@ -471,14 +471,11 @@ fun MiPerfilScreen(
                                         onValueChange = { editNombre = it },
                                         label = { Text("Nombre") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = TextFieldDefaults.colors(
-                                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            textColor = MaterialTheme.colorScheme.onSurface,
                                             cursorColor = MaterialTheme.colorScheme.primary,
-                                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
-                                            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
 
@@ -489,14 +486,11 @@ fun MiPerfilScreen(
                                         onValueChange = { editCelular = it },
                                         label = { Text("Celular") },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = TextFieldDefaults.colors(
-                                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            textColor = MaterialTheme.colorScheme.onSurface,
                                             cursorColor = MaterialTheme.colorScheme.primary,
-                                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,       // borde activo
-                                            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant, // borde inactivo
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
 
