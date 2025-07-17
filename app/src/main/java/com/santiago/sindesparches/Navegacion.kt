@@ -32,6 +32,7 @@ import com.santiago.sindesparches.presentation.notifications.NotificationsScreen
 import com.santiago.sindesparches.presentation.comments.CommentsScreen
 import androidx.compose.runtime.remember
 import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -384,10 +385,12 @@ fun Navegacion(navController: NavHostController,
             )
         ) { backStackEntry ->
             val planId = backStackEntry.arguments?.getString("planId") ?: ""
+            val context = LocalContext.current
             CommentsScreen(
                 planId = planId,
                 db = db,
                 auth = auth,
+                context = context,
                 navigateBack = {
                     navController.popBackStack()
                 },

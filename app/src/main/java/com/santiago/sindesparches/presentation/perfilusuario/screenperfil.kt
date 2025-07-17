@@ -112,28 +112,23 @@ fun UserProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil de Usuario") },
+                title = { Text("Perfil de Usuario", color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF000000),
-                            Color(0xFF1A001A),
-                            Color(0xFF330033)
-                        )
-                    )
-                )
         ) {
             when {
                 isLoading -> {
@@ -248,33 +243,31 @@ fun UserProfileScreen(
                             }
                         } else {
                             items(userPlans) { plan ->
-                                PlanCard(
-                                    plan = plan,
+                                com.santiago.sindesparches.presentation.home.PlanCard(
+                                    plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                        id = plan.id ?: "",
+                                        userId = plan.userId,
+                                        title = plan.title,
+                                        description = plan.description,
+                                        date = plan.date,
+                                        timeString = plan.timeString,
+                                        location = plan.location,
+                                        imageUrls = plan.imageUrls,
+                                        likes = plan.likes,
+                                        participants = plan.participants,
+                                        shares = plan.shares,
+                                        createdAt = plan.createdAt,
+                                        commentCount = plan.commentCount
+                                    ),
+                                    onPlanClick = { navigateToPlanDetail(plan.id ?: "") },
                                     currentUserId = currentUserId,
                                     db = db,
-                                    onClick = {
-                                        plan.id?.let { planId ->
-                                            if (planId.isNotBlank()) {
-                                                Log.d("UserProfileScreen", "Navegando a plan detail con ID: $planId")
-                                                navigateToPlanDetail(planId)
-                                            } else {
-                                                Log.e("UserProfileScreen", "ID del plan está vacío")
-                                            }
-                                        } ?: run {
-                                            Log.e("UserProfileScreen", "Plan sin ID, no se puede navegar")
-                                        }
-                                    },
-                                    onNavigateToProfile = navigateToProfile,
+                                    coroutineScope = coroutineScope,
+                                    context = LocalContext.current,
+                                    navigateToUserProfile = navigateToProfile,
+                                    navigateToEditPlan = {},
                                     navigateToMiPerfil = navigateToMiPerfil,
-                                    // Callback para actualizar el plan en la lista local
-                                    onPlanUpdated = { updatedPlan ->
-                                        userPlans = userPlans.map {
-                                            if (it.id == updatedPlan.id) updatedPlan else it
-                                        }
-                                    },
-                                    onCommentClick = { planId ->
-                                        navigateToComments(planId)
-                                    }
+                                    navigateToComments = navigateToComments
                                 )
                             }
                         }
@@ -295,7 +288,7 @@ private fun ProfileHeader(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Column(
@@ -309,7 +302,7 @@ private fun ProfileHeader(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .border(3.dp, Color.White, CircleShape),
+                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
                 contentScale = ContentScale.Crop,
                 error = painterResource(id = R.drawable.bxs_user)
             )
@@ -321,7 +314,7 @@ private fun ProfileHeader(
                 text = userProfile.nombre.takeIf { it.isNotBlank() } ?: "Usuario",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -334,14 +327,14 @@ private fun ProfileHeader(
                     Icon(
                         Icons.Default.LocationOn,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.8f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = ciudad,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -352,7 +345,7 @@ private fun ProfileHeader(
                 Text(
                     text = email,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -390,232 +383,16 @@ private fun StatisticItem(
             text = value,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PlanCard(
-    plan: Plan,
-    currentUserId: String,
-    db: FirebaseFirestore,
-    onClick: () -> Unit,
-    onNavigateToProfile: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit,
-    onPlanUpdated: (Plan) -> Unit, // Nuevo callback para actualizar el plan
-    onCommentClick: (String) -> Unit
-) {
-    // Estado local del plan para actualizaciones inmediatas
-    var localPlan by remember(plan.id) { mutableStateOf(plan) }
-
-    val context = LocalContext.current
-
-    // Actualizar cuando cambie el plan original
-    LaunchedEffect(plan) {
-        localPlan = plan
-    }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    Log.d("PlanCard", "Renderizando plan: ${localPlan.title} con ID: ${localPlan.id}")
-
-    Card(
-        onClick = {
-            if (!localPlan.id.isNullOrBlank()) {
-                Log.d("PlanCard", "Click en plan con ID: ${localPlan.id}")
-                onClick()
-            } else {
-                Log.e("PlanCard", "Plan sin ID, no se puede navegar")
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Imagen del plan (si tiene)
-            if (localPlan.imageUrls.isNotEmpty()) {
-                AsyncImage(
-                    model = localPlan.imageUrls.first(),
-                    contentDescription = "Imagen del evento",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Título del plan
-            Text(
-                text = localPlan.title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Fecha
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.DateRange,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = formatDate(localPlan.date),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Ubicación
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = localPlan.location,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Descripción (breve)
-            Text(
-                text = localPlan.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.7f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sección de interacciones sociales mejorada
-            SocialInteractionsSection(
-                plan = localPlan,
-                currentUserId = currentUserId,
-                db = db,
-                onNavigateToProfile = onNavigateToProfile,
-                navigateToMiPerfil = navigateToMiPerfil,
-                onLikeToggle = { planId ->
-                    val isCurrentlyLiked = localPlan.likes.contains(currentUserId)
-                    val newLikes = if (isCurrentlyLiked) {
-                        localPlan.likes - currentUserId
-                    } else {
-                        localPlan.likes + currentUserId
-                    }
-
-                    // Actualización inmediata en la UI
-                    val updatedPlan = localPlan.copy(likes = newLikes)
-                    localPlan = updatedPlan
-                    onPlanUpdated(updatedPlan)
-
-                    // Actualización en Firebase en segundo plano
-                    coroutineScope.launch {
-                        try {
-                            toggleLike(db, planId, currentUserId, !isCurrentlyLiked)
-                            Log.d("PlanCard", "Like actualizado en Firebase")
-                        } catch (e: Exception) {
-                            // Si falla, revertir el cambio
-                            localPlan = localPlan.copy(likes = localPlan.likes)
-                            onPlanUpdated(localPlan)
-                            Log.e("PlanCard", "Error al actualizar like: ${e.message}")
-                        }
-                    }
-                },
-                onParticipateToggle = { planId ->
-                    val isCurrentlyParticipating = localPlan.participants.contains(currentUserId)
-                    val newParticipants = if (isCurrentlyParticipating) {
-                        localPlan.participants - currentUserId
-                    } else {
-                        localPlan.participants + currentUserId
-                    }
-
-                    // Actualización inmediata en la UI
-                    val updatedPlan = localPlan.copy(participants = newParticipants)
-                    localPlan = updatedPlan
-                    onPlanUpdated(updatedPlan)
-
-                    // Actualización en Firebase en segundo plano
-                    coroutineScope.launch {
-                        try {
-                            toggleParticipation(db, planId, currentUserId, !isCurrentlyParticipating)
-                            Log.d("PlanCard", "Participación actualizada en Firebase")
-                        } catch (e: Exception) {
-                            // Si falla, revertir el cambio
-                            localPlan = localPlan.copy(participants = localPlan.participants)
-                            onPlanUpdated(localPlan)
-                            Log.e("PlanCard", "Error al actualizar participación: ${e.message}")
-                        }
-                    }
-                },
-                onShare = { planId ->
-                    coroutineScope.launch {
-                        try {
-                            // Actualización inmediata del contador
-                            val updatedPlan = localPlan.copy(shares = localPlan.shares + 1)
-                            localPlan = updatedPlan
-                            onPlanUpdated(updatedPlan)
-
-                            incrementShareCount(db, planId)
-
-                            // Llamar a la función de compartir con más información
-                            shareEvent(
-                                context = context,
-                                planId = planId,
-                                planTitle = localPlan.title,
-                                planDescription = localPlan.description,
-                                planLocation = localPlan.location,
-                                planDate = formatDate(localPlan.date)
-                            )
-                        } catch (e: Exception) {
-                            // Si falla, revertir el cambio
-                            localPlan = localPlan.copy(shares = localPlan.shares - 1)
-                            onPlanUpdated(localPlan)
-                            Log.e("PlanCard", "Error al compartir: ${e.message}")
-                        }
-                    }
-                },
-                onCommentClick = { planId ->
-                    onCommentClick(planId)
-                }
-            )
-        }
-    }
-}
 
 // Función para compartir evento
 private fun shareEvent(planId: String, planTitle: String) {

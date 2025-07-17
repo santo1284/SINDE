@@ -122,15 +122,19 @@ fun PublicacionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (planId == null) "Crear Plan" else "Editar Plan") },
+                title = { Text(if (planId == null) "Crear Plan" else "Editar Plan", color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = navigateToHome) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onSurface)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         if (isLoadingPlanData) {
             Box(
@@ -154,62 +158,92 @@ fun PublicacionScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Título") },
+                    label = { Text("Título", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
 
                 // Descripción
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Descripción") },
+                    label = { Text("Descripción", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
 
                 // Ubicación
                 OutlinedTextField(
                     value = location,
                     onValueChange = { location = it },
-                    label = { Text("Ubicación") },
+                    label = { Text("Ubicación", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(Icons.Default.LocationOn, contentDescription = null)
-                    }
+                        Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
 
                 // Selector de fecha
                 OutlinedTextField(
                     value = formatDate(dateInMillis),
                     onValueChange = { },
-                    label = { Text("Fecha") },
+                    label = { Text("Fecha", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(Icons.Default.DateRange, contentDescription = null)
+                        Icon(Icons.Default.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                     readOnly = true,
                     trailingIcon = {
                         IconButton(onClick = {
                             // Aquí puedes implementar un DatePicker si lo deseas
                         }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha")
+                            Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha", tint = MaterialTheme.colorScheme.primary)
                         }
-                    }
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
 
                 // Selector de hora
                 OutlinedTextField(
                     value = timeString,
                     onValueChange = { timeString = it },
-                    label = { Text("Hora") },
+                    label = { Text("Hora", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    }
+                        Icon(Icons.Default.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
 
                 // Sección de contacto por WhatsApp
@@ -217,7 +251,10 @@ fun PublicacionScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -228,7 +265,8 @@ fun PublicacionScreen(
                         Text(
                             text = "Opciones de contacto",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         // Switch para habilitar/deshabilitar WhatsApp
@@ -242,7 +280,7 @@ fun PublicacionScreen(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Phone,
+                                    painter = painterResource(id = R.drawable.bxl_whatsapp),
                                     contentDescription = null,
                                     tint = Color(0xFF25D366), // Color de WhatsApp
                                     modifier = Modifier.size(24.dp)
@@ -250,13 +288,18 @@ fun PublicacionScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Permitir contacto por WhatsApp",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
 
                             Switch(
                                 checked = enableWhatsapp,
-                                onCheckedChange = { enableWhatsapp = it }
+                                onCheckedChange = { enableWhatsapp = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                )
                             )
                         }
 
@@ -265,17 +308,23 @@ fun PublicacionScreen(
                             OutlinedTextField(
                                 value = phoneNumber,
                                 onValueChange = { phoneNumber = it },
-                                label = { Text("Número de WhatsApp") },
+                                label = { Text("Número de WhatsApp", color = Color.Gray) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                placeholder = { Text("Ej: +57 300 123 4567") },
+                                placeholder = { Text("Ej: +57 300 123 4567", color = Color.Gray) },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.Phone,
+                                        painter = painterResource(id = R.drawable.bxl_whatsapp),
                                         contentDescription = null,
                                         tint = Color(0xFF25D366)
                                     )
-                                }
+                                },
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    textColor = MaterialTheme.colorScheme.onSurface,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
@@ -383,7 +432,10 @@ fun PublicacionScreen(
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(vertical = 12.dp)
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -464,7 +516,10 @@ fun PublicacionScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
-                    contentPadding = PaddingValues(vertical = 16.dp)
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(

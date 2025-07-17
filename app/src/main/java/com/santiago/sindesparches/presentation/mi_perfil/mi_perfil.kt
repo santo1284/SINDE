@@ -266,15 +266,7 @@ fun MiPerfilScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF2196F3), // azul
-                            Color(0xFF64B5F6), // azul_mitad
-                            Color(0xFF9C27B0)  // Purple
-                        )
-                    )
-                )
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // Header con botones
             Row(
@@ -457,7 +449,7 @@ fun MiPerfilScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp)
@@ -466,7 +458,7 @@ fun MiPerfilScreen(
                                 text = "Información Personal",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -478,7 +470,13 @@ fun MiPerfilScreen(
                                         value = editNombre,
                                         onValueChange = { editNombre = it },
                                         label = { Text("Nombre") },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            textColor = MaterialTheme.colorScheme.onSurface,
+                                            cursorColor = MaterialTheme.colorScheme.primary,
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -487,7 +485,13 @@ fun MiPerfilScreen(
                                         value = editCelular,
                                         onValueChange = { editCelular = it },
                                         label = { Text("Celular") },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            textColor = MaterialTheme.colorScheme.onSurface,
+                                            cursorColor = MaterialTheme.colorScheme.primary,
+                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     )
 
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -543,7 +547,10 @@ fun MiPerfilScreen(
                                                     }
                                             }
                                         },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
                                     ) {
                                         Text("Guardar Cambios")
                                     }
@@ -565,18 +572,22 @@ fun MiPerfilScreen(
                     // Tabs para FlashPlans y Planes
                     TabRow(
                         selectedTabIndex = selectedTab,
-                        containerColor = Color.White.copy(alpha = 0.9f),
-                        contentColor = Color.Black
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ) {
                         Tab(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
-                            text = { Text("FlashPlans (${flashPlans.size})") }
+                            text = { Text("FlashPlans (${flashPlans.size})") },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Tab(
                             selected = selectedTab == 1,
                             onClick = { selectedTab = 1 },
-                            text = { Text("Planes (${planes.size})") }
+                            text = { Text("Planes (${planes.size})") },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -637,105 +648,31 @@ fun MiPerfilScreen(
                     } else {
                         // Usar items() directamente en lugar de LazyColumn anidado
                         items(planes) { plan ->
-                            PlanCard(
-                                plan = plan,
+                           com.santiago.sindesparches.presentation.home.PlanCard(
+                                plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                    id = plan.id,
+                                    userId = plan.userId,
+                                    title = plan.title,
+                                    description = plan.description,
+                                    date = 0,
+                                    timeString = plan.timeString,
+                                    location = plan.location,
+                                    imageUrls = plan.imageUrls,
+                                    likes = plan.likes,
+                                    participants = plan.participants,
+                                    shares = plan.shares,
+                                    createdAt = System.currentTimeMillis(),
+                                    commentCount = plan.commentCount
+                                ),
                                 onPlanClick = { navigateToPlanDetail(plan.id) },
-                                onLikeClick = { planId ->
-                                    // Toggle like
-                                    val currentUserId = auth.currentUser?.uid ?: return@PlanCard
-                                    val isLiked = plan.likes.contains(currentUserId)
-
-                                    val updatedLikes = if (isLiked) {
-                                        plan.likes - currentUserId
-                                    } else {
-                                        plan.likes + currentUserId
-                                    }
-
-                                    // Actualizar en Firebase
-                                    db.collection("planes").document(planId)
-                                        .update("likes", updatedLikes)
-                                        .addOnSuccessListener {
-                                            // Actualizar lista local
-                                            planes = planes.map { p ->
-                                                if (p.id == planId) p.copy(likes = updatedLikes) else p
-                                            }
-                                        }
-                                },
-                                onParticipateClick = { planId ->
-                                    val currentUserId = auth.currentUser?.uid ?: return@PlanCard
-
-                                    // Obtener datos actuales desde Firebase
-                                    db.collection("planes").document(planId)
-                                        .get()
-                                        .addOnSuccessListener { document ->
-                                            if (document.exists()) {
-                                                val currentParticipants = document.get("participants") as? List<String> ?: emptyList()
-                                                val isParticipating = currentParticipants.contains(currentUserId)
-
-                                                if (isParticipating) {
-                                                    // SALIR del plan
-                                                    val updatedParticipants = currentParticipants - currentUserId
-                                                    db.collection("planes").document(planId)
-                                                        .update("participants", updatedParticipants)
-                                                        .addOnSuccessListener {
-                                                            planes = planes.map { p ->
-                                                                if (p.id == planId) p.copy(participants = updatedParticipants) else p
-                                                            }
-                                                            Log.d("Participate", "Saliste del plan exitosamente")
-                                                        }
-                                                        .addOnFailureListener { e ->
-                                                            Log.e("Participate", "Error al salir del plan", e)
-                                                        }
-                                                } else {
-                                                    // UNIRSE al plan (sin límite)
-                                                    val updatedParticipants = currentParticipants + currentUserId
-                                                    db.collection("planes").document(planId)
-                                                        .update("participants", updatedParticipants)
-                                                        .addOnSuccessListener {
-                                                            planes = planes.map { p ->
-                                                                if (p.id == planId) p.copy(participants = updatedParticipants) else p
-                                                            }
-                                                            Log.d("Participate", "Te uniste al plan exitosamente")
-                                                        }
-                                                        .addOnFailureListener { e ->
-                                                            Log.e("Participate", "Error al unirse al plan", e)
-                                                        }
-                                                }
-                                            }
-                                        }
-                                        .addOnFailureListener { e ->
-                                            Log.e("Participate", "Error al obtener datos del plan", e)
-                                        }
-                                },
-                                onShareClick = { planId ->
-                                    // Incrementar contador de shares
-                                    val updatedShares = plan.shares + 1
-                                    db.collection("planes").document(planId)
-                                        .update("shares", updatedShares)
-                                        .addOnSuccessListener {
-                                            planes = planes.map { p ->
-                                                if (p.id == planId) p.copy(shares = updatedShares) else p
-                                            }
-                                        }
-                                },
-                                onLikesDialogClick = { planId ->
-                                    selectedPlanId = planId
-                                    loadUsersData(plan.likes, db) { usuarios ->
-                                        selectedPlanLikes = usuarios
-                                        showLikesDialog = true
-                                    }
-                                },
-                                onParticipantsDialogClick = { planId ->
-                                    selectedPlanId = planId
-                                    loadUsersData(plan.participants, db) { usuarios ->
-                                        selectedPlanParticipants = usuarios
-                                        showParticipantsDialog = true
-                                    }
-                                },
                                 currentUserId = auth.currentUser?.uid ?: "",
-                                onCommentClick = { planId ->
-                                    navigateToComments(planId)
-                                }
+                                db = db,
+                                coroutineScope = rememberCoroutineScope(),
+                                context = LocalContext.current,
+                                navigateToUserProfile = navigateToProfile,
+                                navigateToEditPlan = {},
+                                navigateToMiPerfil = navigateToMiPerfil,
+                                navigateToComments = navigateToComments
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -922,11 +859,11 @@ fun InfoRow(label: String, value: String) {
         Text(
             text = "$label:",
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = value,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -935,7 +872,7 @@ fun InfoRow(label: String, value: String) {
 fun FlashPlanCard(flashPlan: FlashPlan) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
         // Solo mostrar la imagen si existe
         flashPlan.imageUrl?.let { imageUrl ->
@@ -970,211 +907,6 @@ fun FlashPlanCard(flashPlan: FlashPlan) {
     }
 }
 
-@Composable
-fun PlanCard(
-    plan: Plan,
-    onPlanClick: () -> Unit,
-    onLikeClick: (String) -> Unit,
-    onParticipateClick: (String) -> Unit,
-    onShareClick: (String) -> Unit,
-    onLikesDialogClick: (String) -> Unit,
-    onParticipantsDialogClick: (String) -> Unit,
-    currentUserId: String,
-    onCommentClick: (String) -> Unit
-) {
-    val isLiked = plan.likes.contains(currentUserId)
-    val isParticipating = plan.participants.contains(currentUserId)
-    val canParticipate = plan.participants.size < plan.maxParticipantes
-    val context = LocalContext.current
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // Imágenes del plan
-            if (plan.imageUrls.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clickable(onClick = onPlanClick)
-                ) {
-                    if (plan.imageUrls.size == 1) {
-                        AsyncImage(
-                            model = plan.imageUrls.first(),
-                            contentDescription = "Imagen del plan",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(plan.imageUrls) { imageUrl ->
-                                AsyncImage(
-                                    model = imageUrl,
-                                    contentDescription = "Imagen del plan",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillParentMaxHeight()
-                                        .width(300.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Información del plan
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .clickable(onClick = onPlanClick)
-            ) {
-                // Título y categoría
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = plan.title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.Black,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = plan.categoria,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .background(
-                                Color(0xFF2196F3),
-                                RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Descripción
-                Text(
-                    text = plan.description,
-                    color = Color.Black,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Fecha y hora
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.DateRange,
-                        contentDescription = "Fecha",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${plan.date} - ${plan.timeString}",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Ubicación
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = "Lugar",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = plan.location,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Botones de interacción mejorados
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    // Botón de Me gusta (Rojo)
-                    ImprovedInteractiveButton(
-                        icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        count = plan.likes.size,
-                        isActive = isLiked,
-                        activeColor = Color(0xFFE91E63), // Rosa/Rojo
-                        onIconClick = { onLikeClick(plan.id) },
-                        onCountClick = { onLikesDialogClick(plan.id) }
-                    )
-
-                    // Botón de Participar (Verde)
-                    ImprovedInteractiveButton(
-                        icon = if (isParticipating) Icons.Default.Check else Icons.Default.Add,
-                        count = plan.participants.size,
-                        isActive = isParticipating,
-                        activeColor = Color(0xFF4CAF50), // Verde
-                        onIconClick = { onParticipateClick(plan.id) },
-                        onCountClick = { onParticipantsDialogClick(plan.id) },
-                        enabled = canParticipate || isParticipating
-                    )
-
-                    // Botón de Compartir (Azul)
-                    ImprovedInteractiveButton(
-                        icon = Icons.Default.Share,
-                        count = plan.shares,
-                        isActive = false,
-                        activeColor = Color(0xFF3C9DEC), // Azul
-                        onIconClick = {
-                            // Incrementar contador Y abrir compartir
-                            val updatedShares = plan.shares + 1
-                            FirebaseFirestore.getInstance().collection("planes").document(plan.id)
-                                .update("shares", updatedShares)
-                                .addOnSuccessListener {
-                                    onShareClick(plan.id) // Actualizar la lista local
-                                    shareContent(context, plan) // Abrir compartir
-                                }
-                        },
-                        onCountClick = { /* No hace nada para compartir */ }
-                    )
-
-                    // Botón de Comentarios
-                    ImprovedInteractiveButton(
-                        icon = ImageVector.vectorResource(id = R.drawable.ic_comment),
-                        count = plan.commentCount,
-                        isActive = false,
-                        activeColor = Color(0xFF2196F3), // Azul
-                        onIconClick = { onCommentClick(plan.id) },
-                        onCountClick = { onCommentClick(plan.id) }
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun ImprovedInteractiveButton(

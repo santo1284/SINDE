@@ -193,7 +193,7 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear Plan") },
+                title = { Text("Crear Plan", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (formHasContent(title, description, location, selectedDate, selectedImages)) {
@@ -202,12 +202,13 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                             navigateToHome()
                         }
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                     }
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color(0xFF1A1A1A)
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -221,22 +222,34 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Nombre del plan") },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                label = { Text("Nombre del plan", color = Color.Gray) },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFF8A2BE2),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Descripción
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Descripción") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                label = { Text("Descripción", color = Color.Gray) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
-                maxLines = 5
+                maxLines = 5,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFF8A2BE2),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Fecha
@@ -247,15 +260,24 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 OutlinedTextField(
                     value = formattedDate,
                     onValueChange = { },
-                    label = { Text("Fecha") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("Fecha", color = Color.Gray) },
+                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
                     modifier = Modifier.weight(1f),
-                    readOnly = true
+                    readOnly = true,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedBorderColor = Color(0xFF8A2BE2),
+                        unfocusedBorderColor = Color.Gray
+                    )
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = { showDatePicker = true }) {
+                Button(
+                    onClick = { showDatePicker = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
+                ) {
                     Text("Seleccionar")
                 }
             }
@@ -268,15 +290,24 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 OutlinedTextField(
                     value = selectedTime,
                     onValueChange = { },
-                    label = { Text("Hora") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+                    label = { Text("Hora", color = Color.Gray) },
+                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
                     modifier = Modifier.weight(1f),
-                    readOnly = true
+                    readOnly = true,
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        textColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedBorderColor = Color(0xFF8A2BE2),
+                        unfocusedBorderColor = Color.Gray
+                    )
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = { showTimePicker = true }) {
+                Button(
+                    onClick = { showTimePicker = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
+                ) {
                     Text("Seleccionar")
                 }
             }
@@ -285,10 +316,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
             OutlinedTextField(
                 value = location,
                 onValueChange = { location = it },
-                label = { Text("Ubicación") },
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                label = { Text("Ubicación", color = Color.Gray) },
+                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    textColor = Color.White,
+                    cursorColor = Color.White,
+                    focusedBorderColor = Color(0xFF8A2BE2),
+                    unfocusedBorderColor = Color.Gray
+                )
             )
 
             // Sección para cargar imágenes
@@ -296,7 +333,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 text = "Imágenes (1-5)",
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = Color.White
                 ),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
@@ -488,7 +526,8 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
-                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank()
+                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
