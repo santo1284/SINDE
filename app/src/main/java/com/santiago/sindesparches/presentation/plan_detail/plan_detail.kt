@@ -119,24 +119,22 @@ fun PlanDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black,
+                    containerColor = Color(0xFF1A1A1A),
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White,
                     actionIconContentColor = Color.White
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(black)) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(Color.Black)) },
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(azul, azul_mitad, Purple),
-                        start = Offset(Float.POSITIVE_INFINITY, 0f),
-                        end = Offset(0f, Float.POSITIVE_INFINITY)
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1A1A1A), Color(0xFF2A2A2A), Color(0xFF1A1A1A))
                     )
                 )
         ) {
@@ -258,13 +256,20 @@ fun PlanDetailScreen(
 
                     // Imágenes del plan
                     if (plan!!.imageUrls.isNotEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(300.dp)
-                        ) {
+                        if (plan!!.imageUrls.size == 1) {
+                            AsyncImage(
+                                model = plan!!.imageUrls.first(),
+                                contentDescription = "Imagen del plan",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp)
+                            )
+                        } else {
                             LazyRow(
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp)
                             ) {
                                 items(plan!!.imageUrls) { imageUrl ->
                                     AsyncImage(
@@ -290,7 +295,8 @@ fun PlanDetailScreen(
                         Text(
                             text = plan!!.title,
                             style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
 
 
@@ -303,14 +309,15 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.DateRange,
+                                Icons.Filled.Event,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFF8A2BE2)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = formatDate(plan!!.date),
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -319,14 +326,15 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.Star,
+                                Icons.Filled.AccessTime,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFF8A2BE2)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.timeString,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -336,14 +344,15 @@ fun PlanDetailScreen(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.LocationOn,
+                                Icons.Filled.Place,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Color(0xFF8A2BE2)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = plan!!.location,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White
                             )
                         }
 
@@ -353,7 +362,8 @@ fun PlanDetailScreen(
                         Text(
                             text = "Descripción",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -363,12 +373,13 @@ fun PlanDetailScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp),
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            color = Color.Black.copy(alpha = 0.3f)
                         ) {
                             Text(
                                 text = plan!!.description,
                                 style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp)
+                                modifier = Modifier.padding(16.dp),
+                                color = Color.White
                             )
                         }
 
@@ -404,22 +415,21 @@ fun PlanDetailScreen(
                                     .fillMaxWidth()
                                     .padding(vertical = 8.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF25D366) // Color verde de WhatsApp
-                                )
+                                    containerColor = Color(0xFF8A2BE2)
+                                ),
+                                shape = RoundedCornerShape(50)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    // Aquí deberías añadir un icono de WhatsApp
-                                    // Puedes usar un icono personalizado o alguno similar de Material Icons
                                     Icon(
-                                        Icons.Default.Info,
+                                        painter = painterResource(id = R.drawable.bxl_whatsapp),
                                         contentDescription = "WhatsApp",
                                         tint = Color.White
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Contactar por WhatsApp")
+                                    Text("Contactar por WhatsApp", color = Color.White)
                                 }
                             }
                         }

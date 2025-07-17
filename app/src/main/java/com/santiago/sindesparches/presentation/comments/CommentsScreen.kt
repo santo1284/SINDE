@@ -27,6 +27,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
 import com.santiago.sindesparches.presentation.publicaciones.Plan
+import android.content.Context
+import android.util.Log
+import android.widget.Toast
+import com.santiago.sindesparches.presentation.notifications.sendNotification
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -36,6 +40,7 @@ fun CommentsScreen(
     planId: String,
     db: FirebaseFirestore,
     auth: FirebaseAuth,
+    context: Context,
     navigateBack: () -> Unit,
     navigateToUserProfile: (String) -> Unit
 ) {
@@ -98,6 +103,18 @@ fun CommentsScreen(
                 db.collection("planes").document(planId).collection("comments")
                     .add(comment)
                     .await()
+
+                // Notify plan owner
+                if (planOwnerId != null && planOwnerId != currentUserId) {
+                    sendNotification(
+                        db = db,
+                        recipientId = planOwnerId!!,
+                        senderId = currentUserId,
+                        type = "comment",
+                        planId = planId,
+                        context = context
+                    )
+                }
 
                 newCommentText = ""
 
@@ -181,6 +198,7 @@ fun CommentsScreen(
         }
     }
 }
+
 
 @Composable
 fun CommentItem(

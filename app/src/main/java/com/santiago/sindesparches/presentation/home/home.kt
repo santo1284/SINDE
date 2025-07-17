@@ -52,6 +52,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -78,11 +80,14 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -111,6 +116,7 @@ import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.presentation.flash_plan.obtenerNombreUsuario
 import com.santiago.sindesparches.presentation.plan_detail.UserProfile
+import com.santiago.sindesparches.presentation.notifications.sendNotification
 import com.santiago.sindesparches.presentation.publicaciones.Plan
 import com.santiago.sindesparches.ui.theme.Purple
 import com.santiago.sindesparches.ui.theme.azul
@@ -817,119 +823,142 @@ fun homeScreen(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .offset(x = rightMenuOffset)
-                .width(200.dp)
-                .height(910.dp)
+                .width(250.dp)
+                .fillMaxHeight()
                 .background(
-                    Color.LightGray,
+                    Color(0xFF1A1A1A),
                     shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                 )
-                .padding(10.dp)
+                .padding(16.dp)
                 .zIndex(2f)
         ) {
-            Column {
-                Text(
-                    "Menú derecho",
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Button(
-                    onClick = navigateToMiPerfil,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.Black
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Perfil del usuario
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { navigateToMiPerfil() }
+                        .padding(vertical = 12.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Imagen de perfil
-                        if (imagenUrl != null) {
-                            AsyncImage(
-                                model = imagenUrl,
-                                contentDescription = "Foto de perfil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                            )
-                        } else {
-                            // Imagen de respaldo o loader
-                            Box(
-                                modifier = Modifier
-                                    .size(55.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Gray)
+                    if (imagenUrl != null) {
+                        AsyncImage(
+                            model = imagenUrl,
+                            contentDescription = "Foto de perfil",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Usuario",
+                                tint = Color.White
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        // Nombre del usuario
-                        Text(
-                            text = nombreCorto ?: "Cargando...",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.Black // ✅ Cambiado a negro
-                        )
                     }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = nombreCorto ?: "Cargando...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Button(onClick = navigateToMegusta) {
-                    Text("Me Gusta")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(onClick = navigateToParticipar) {
-                    Text("Participar")
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(onClick = navigateToNotifications) {
-                    Text("Notificaciones")
-                }
-
-                Button(
-                    onClick = { showRightMenu = false },
-                    modifier = Modifier.fillMaxWidth()
+                // Botones de navegación
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("Cerrar")
+                    MenuItem(
+                        text = "Me Gusta",
+                        icon = Icons.Default.Favorite,
+                        onClick = navigateToMegusta
+                    )
+                    MenuItem(
+                        text = "Participar",
+                        icon = Icons.Default.Check,
+                        onClick = navigateToParticipar
+                    )
+                    MenuItem(
+                        text = "Notificaciones",
+                        icon = Icons.Default.Notifications,
+                        onClick = navigateToNotifications
+                    )
                 }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Botón de cerrar sesión
+                MenuItem(
+                    text = "Cerrar Sesión",
+                    icon = Icons.AutoMirrored.Filled.ExitToApp,
+                    onClick = {
+                        auth.signOut()
+                        navigateToInicial()
+                    }
+                )
             }
         }
 
         // Historia en pantalla completa por 30s
         if (showStory && currentStory != null) {
+            val progress = remember { Animatable(0f) }
+
             LaunchedEffect(currentStory) {
-                delay(30000)
+                progress.snapTo(0f)
+                progress.animateTo(1f, animationSpec = tween(durationMillis = 30000, easing = LinearEasing))
                 showStory = false
             }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.95f))
-                    .clickable { showStory = false }
-                    .zIndex(10f),
-                contentAlignment = Alignment.Center
+                    .background(Color.Black)
+                    .zIndex(10f)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Cuadro con información del usuario creador
+                AsyncImage(
+                    model = currentStory!!.imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+
+                // Barra de progreso y detalles del usuario
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .padding(8.dp)
+                ) {
+                    LinearProgressIndicator(
+                        progress = progress.value,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = Color.White,
+                        trackColor = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
-                            .clickable {
-                                navigateToUserProfile(currentStory!!.userId)
-                            },
-                        horizontalArrangement = Arrangement.Start,
+                            .clickable { navigateToUserProfile(currentStory!!.userId) },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Imagen del usuario
                         val userImageUrl = userProfileImages[currentStory!!.userId]
-
                         if (userImageUrl != null && userImageUrl.isNotEmpty()) {
                             AsyncImage(
                                 model = userImageUrl,
@@ -937,12 +966,9 @@ fun homeScreen(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape),
-                                contentScale = ContentScale.Crop,
-                                error = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                                contentScale = ContentScale.Crop
                             )
                         } else {
-                            // Placeholder cuando no hay imagen
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -953,15 +979,11 @@ fun homeScreen(
                                 Icon(
                                     Icons.Default.Person,
                                     contentDescription = "Usuario",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = Color.White
                                 )
                             }
                         }
-
                         Spacer(modifier = Modifier.width(12.dp))
-
-                        // Nombre del usuario
                         Text(
                             text = currentStory!!.username,
                             color = Color.White,
@@ -969,14 +991,19 @@ fun homeScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                }
 
-                    // Imagen del FlashPlan
-                    AsyncImage(
-                        model = currentStory!!.imageUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(0.9f),
-                        contentScale = ContentScale.Fit,
-                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                // Botón para cerrar
+                IconButton(
+                    onClick = { showStory = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = Color.White
                     )
                 }
             }
@@ -1607,11 +1634,13 @@ fun PlanCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        Text(
-                            text = formatCount(plan.commentCount),
-                            color = Color.White,
-                            fontSize = 12.sp
-                        )
+                        if (plan.commentCount > 0) {
+                            Text(
+                                text = formatCount(plan.commentCount),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
@@ -1975,57 +2004,6 @@ suspend fun getUserNames(userIds: List<String>, db: FirebaseFirestore): List<Str
 
 
 // funcion para enviar notificaciones
-suspend fun sendNotification(
-    db: FirebaseFirestore,
-    recipientId: String,
-    senderId: String,
-    type: String,
-    planId: String,
-    context: Context
-) {
-    try {
-        // Obtener el nombre del usuario que realiza la acción
-        val senderDoc = db.collection("perfil").document(senderId).get().await()
-        val senderName = senderDoc.getString("nombre") ?: "Usuario desconocido"
-
-        // Obtener el título del plan
-        val planDoc = db.collection("planes").document(planId).get().await()
-        val planTitle = planDoc.getString("title") ?: "Plan"
-
-        // Crear el mensaje de notificación
-        val message = when (type) {
-            "like" -> "$senderName le gustó tu plan: $planTitle"
-            "participate" -> "$senderName va a participar en tu plan: $planTitle"
-            "share" -> "$senderName compartió tu plan: $planTitle"
-            else -> "$senderName interactuó con tu plan: $planTitle"
-        }
-
-        // Crear la notificación en Firestore
-        val notificationData = hashMapOf(
-            "recipientId" to recipientId,
-            "senderId" to senderId,
-            "senderName" to senderName,
-            "type" to type,
-            "planId" to planId,
-            "planTitle" to planTitle,
-            "message" to message,
-            "timestamp" to FieldValue.serverTimestamp(),
-            "read" to false
-        )
-
-        db.collection("notifications")
-            .add(notificationData)
-            .addOnSuccessListener {
-                Log.d("Notification", "Notificación enviada correctamente")
-            }
-            .addOnFailureListener { e ->
-                Log.e("Notification", "Error al enviar notificación", e)
-            }
-
-    } catch (e: Exception) {
-        Log.e("sendNotification", "Error al enviar notificación", e)
-    }
-}
 
 // Función para obtener los planes desde Firestore
 private suspend fun getPlanes(db: FirebaseFirestore): List<Plan> = withContext(Dispatchers.IO) {
@@ -2068,6 +2046,32 @@ data class Story(
     val viewers: List<String> = emptyList()
 )
 
+@Composable
+fun MenuItem(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = Color.White
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
 
 
 

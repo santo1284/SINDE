@@ -153,10 +153,9 @@ fun NotificationItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
-                    text = notification.senderName,
+                    text = notification.message,
                     fontWeight = FontWeight.Bold
                 )
-                Text(text = notification.message)
             }
         }
     }
