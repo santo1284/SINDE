@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
             navControlller = rememberNavController()
             SinDesparchesTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) {
-                    Navegacion(navControlller, auth, db, intent)
+                    Navegacion(navControlller, auth, db)
 
                 }
             }

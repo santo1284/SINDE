@@ -42,9 +42,6 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageException
 import android.content.Context
 import android.content.Intent
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
-import com.santiago.sindesparches.R
 
 // Data classes para los modelos
 data class PerfilUsuario(
@@ -1163,10 +1160,10 @@ fun PlanCard(
 
                     // Botón de Comentarios
                     ImprovedInteractiveButton(
-                        icon = ImageVector.vectorResource(id = R.drawable.ic_comment),
+                        icon = painterResource(id = R.drawable.ic_comment),
                         count = plan.commentCount,
                         isActive = false,
-                        activeColor = Color(0xFF008FFF), // Azul
+                        activeColor = Color(0xFF2196F3), // Azul
                         onIconClick = { onCommentClick(plan.id) },
                         onCountClick = { onCommentClick(plan.id) }
                     )

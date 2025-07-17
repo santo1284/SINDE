@@ -80,6 +80,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -147,6 +148,15 @@ fun homeScreen(
     navigateToNotifications: () -> Unit = {},
     navigateToComments: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val intent = (context as? android.app.Activity)?.intent
+        val planId = intent?.getStringExtra("planId")
+        if (planId != null) {
+            navigateToPlanDetail(planId)
+            intent.removeExtra("planId")
+        }
+    }
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var showRightMenu by remember { mutableStateOf(false) }

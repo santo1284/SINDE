@@ -30,8 +30,6 @@ import com.santiago.sindesparches.presentation.publicaciones.publicacion_screen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
 import com.santiago.sindesparches.presentation.notifications.NotificationsScreen
 import com.santiago.sindesparches.presentation.comments.CommentsScreen
-import androidx.compose.runtime.remember
-import android.content.Intent
 
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -39,15 +37,7 @@ import android.content.Intent
 
 fun Navegacion(navController: NavHostController,
                auth: FirebaseAuth,
-                db: FirebaseFirestore,
-                intent: Intent) {
-
-    LaunchedEffect(intent) {
-        val planId = intent.getStringExtra("planId")
-        if (planId != null) {
-            navController.navigate("plan_detail/$planId")
-        }
-    }
+                db: FirebaseFirestore) {
 
     NavHost(navController = navController, startDestination = "inicio") {
 
@@ -192,6 +182,9 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
+                },
+                navigateToComments = { planId ->
+                    navController.navigate("comments/$planId")
                 }
             )
         }
@@ -315,9 +308,6 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
-                },
-                navigateToComments = { planId ->
-                    navController.navigate("comments/$planId")
                 }
 
             )

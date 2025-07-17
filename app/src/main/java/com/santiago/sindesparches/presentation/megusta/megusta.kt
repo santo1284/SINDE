@@ -38,7 +38,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
-import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.white
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch

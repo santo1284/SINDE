@@ -2,7 +2,6 @@ package com.santiago.sindesparches.presentation.comments
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -95,9 +94,14 @@ fun CommentsScreen(
                     timestamp = FieldValue.serverTimestamp()
                 )
 
-                db.collection("planes").document(planId).collection("comments")
-                    .add(comment)
-                    .await()
+                db.runBatch { batch ->
+                    val planRef = db.collection("planes").document(planId)
+                    batch.update(planRef, "commentCount", FieldValue.increment(1))
+
+                    val commentRef = planRef.collection("comments").document()
+                    batch.set(commentRef, comment)
+                }.await()
+
 
                 newCommentText = ""
 
