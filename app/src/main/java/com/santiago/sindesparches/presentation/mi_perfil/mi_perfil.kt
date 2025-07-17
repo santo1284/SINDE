@@ -1147,7 +1147,7 @@ fun PlanCard(
                         icon = Icons.Default.Share,
                         count = plan.shares,
                         isActive = false,
-                        activeColor = Color(0xFF2196F3), // Azul
+                        activeColor = Color(0xFF3C9DEC), // Azul
                         onIconClick = {
                             // Incrementar contador Y abrir compartir
                             val updatedShares = plan.shares + 1
