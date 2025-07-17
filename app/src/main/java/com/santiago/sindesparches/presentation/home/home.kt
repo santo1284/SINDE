@@ -1168,7 +1168,7 @@ fun PlanCard(
             // Imagen de perfil
             AsyncImage(
                 model = userProfile.profileImageUrl,
-                contentDescription = "Foto de perfil de ${userProfile.nombre}",
+                contentDescription = "Foto de perfil ${userProfile.nombre}",
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
