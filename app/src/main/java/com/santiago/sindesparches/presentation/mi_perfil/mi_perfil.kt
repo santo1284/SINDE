@@ -1166,7 +1166,7 @@ fun PlanCard(
                         icon = ImageVector.vectorResource(id = R.drawable.ic_comment),
                         count = plan.commentCount,
                         isActive = false,
-                        activeColor = Color(0xFF2196F3), // Azul
+                        activeColor = Color(0xFF008FFF), // Azul
                         onIconClick = { onCommentClick(plan.id) },
                         onCountClick = { onCommentClick(plan.id) }
                     )
