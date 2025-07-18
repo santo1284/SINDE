@@ -769,13 +769,14 @@ fun homeScreen(
                                                     FieldValue.arrayUnion(currentUserId)
                                                 )
                                                 .addOnSuccessListener {
-                                                    stories = stories.map { s ->
+                                                    val updatedStories = stories.map { s ->
                                                         if (s.id == story.id) {
                                                             s.copy(viewers = s.viewers + currentUserId)
                                                         } else {
                                                             s
                                                         }
                                                     }
+                                                    stories = updatedStories
                                                 }
                                         }
                                     }
