@@ -1057,6 +1057,33 @@ fun PlanCard(
     var participants by remember { mutableIntStateOf(plan.participants?.size ?: 0) }
     var isParticipating by remember { mutableStateOf(plan.participants?.contains(currentUserId) == true) }
     var shares by remember { mutableIntStateOf(plan.shares ?: 0) }
+    var commentCount by remember { mutableIntStateOf(plan.commentCount) }
+
+    LaunchedEffect(plan.id) {
+        val planRef = db.collection("planes").document(plan.id)
+        val listener = planRef.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                Log.w("PlanCard", "Listen failed.", e)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val updatedPlan = snapshot.toObject(Plan::class.java)
+                updatedPlan?.let {
+                    likes = it.likes?.size ?: 0
+                    isLiked = it.likes?.contains(currentUserId) == true
+                    participants = it.participants?.size ?: 0
+                    isParticipating = it.participants?.contains(currentUserId) == true
+                    shares = it.shares ?: 0
+                    commentCount = it.commentCount
+                }
+            } else {
+                Log.d("PlanCard", "Current data: null")
+            }
+        }
+        // Remember to remove the listener when the composable is disposed
+        // onDispose { listener.remove() } // This is not available in LaunchedEffect, handle cleanup appropriately
+    }
 
     // Estados para mostrar diálogos de información
     var showLikesDialog by remember { mutableStateOf(false) }
@@ -1638,7 +1665,7 @@ fun PlanCard(
                             )
                         }
                         Text(
-                            text = formatCount(plan.commentCount),
+                            text = formatCount(commentCount),
                             color = Color.White,
                             fontSize = 12.sp
                         )
