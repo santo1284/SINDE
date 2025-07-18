@@ -959,6 +959,7 @@ private fun formatDate(dateMillis: Long): String {
     }
 }
 
+
 // ✅ DATA CLASSES CONSISTENTES
 data class UserProfile(
     val id: String = "",
