@@ -4,7 +4,20 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +37,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -41,8 +58,12 @@ import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.black
 import com.santiago.sindesparches.ui.theme.white
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 // Data class para los planes
 data class Plan(
@@ -76,7 +97,7 @@ data class UserInfo(
     val profileImageUrl: String?
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun planesParticipoScreen(
     auth: FirebaseAuth,
@@ -94,6 +115,36 @@ fun planesParticipoScreen(
     var participatingPlans by remember { mutableStateOf<List<Plan>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Animaciones
+    val infiniteTransition = rememberInfiniteTransition(label = "background")
+    val gradientOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradient"
+    )
+
+    // Colores vibrantes para tema nocturno
+    val nightColors = listOf(
+        Color(0xFF001312), // Azul marino profundo
+        Color(0xFF01312B), // Azul oscuro
+        Color(0xFF02574D), // Azul medianoche
+        Color(0xFF01312B), // Azul oscuro
+        Color(0xFF001312), // Púrpura profundo
+    )
+
+    val accentColors = listOf(
+        Color(0xFF3498DB), // Azul brillante - principal para participación
+        Color(0xFF1ABC9C), // Verde esmeralda
+        Color(0xFF9B59B6), // Púrpura vibrante
+        Color(0xFFF39C12), // Naranja dorado
+        Color(0xFFE94560), // Rojo vibrante
+        Color(0xFFE74C3C), // Rojo coral
+    )
 
     // Función para recargar los datos
     fun reloadData() {
@@ -158,156 +209,438 @@ fun planesParticipoScreen(
         reloadData()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Planes donde participo",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = navigatehome) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    val gradientOffsetfondo by rememberInfiniteTransition().animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // Fondo animado
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = nightColors,
+                    startY = gradientOffsetfondo * 2000f,
+                    endY = (gradientOffsetfondo + 2f) * 2000f
                 )
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    ) {
+        // Canvas con partículas animadas
+        Canvas(
+            modifier = Modifier.fillMaxSize()
         ) {
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+            // Partículas flotantes
+            val particleCount = 80
+            repeat(particleCount) { i ->
+                val x = (i * 137.5f + gradientOffset * 200f) % size.width
+                val y = (i * 73.2f + gradientOffset * 150f) % size.height
+                val radius = (2f + sin(gradientOffset * 2f + i) * 1.5f).coerceAtLeast(0.5f)
+
+                drawCircle(
+                    color = accentColors[i % accentColors.size].copy(alpha = 0.3f),
+                    radius = radius,
+                    center = Offset(x, y)
+                )
+            }
+        }
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            CircularProgressIndicator(color = Color.White)
-                            Spacer(modifier = Modifier.height(16.dp))
+                            // Icono con glow effect - tema participación
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                Color(0xFF3498DB), // Azul brillante
+                                                Color(0xFF1ABC9C)  // Verde esmeralda
+                                            )
+                                        ),
+                                        shape = CircleShape
+                                    )
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Face, // Icono de grupo para participación
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
                             Text(
-                                "Cargando planes...",
+                                "Mis Participaciones",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
                                 color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.headlineSmall
                             )
                         }
-                    }
-                }
-
-                errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = navigatehome,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.1f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
-                                Icons.Default.Clear,
-                                contentDescription = null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(48.dp)
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                errorMessage!!,
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { reloadData() }) {
-                                Text("Reintentar")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    modifier = Modifier.statusBarsPadding()
+                )
+            },
+            containerColor = Color.Transparent
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when {
+                    isLoading -> {
+                        ParticipationLoadingSection(accentColors)
+                    }
+
+                    errorMessage != null -> {
+                        ParticipationErrorSection(
+                            errorMessage = errorMessage!!,
+                            onRetry = { reloadData() },
+                            accentColors = accentColors
+                        )
+                    }
+
+                    participatingPlans.isEmpty() -> {
+                        ParticipationEmptySection(accentColors)
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(participatingPlans, key = { it.id }) { plan ->
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = slideInVertically(
+                                        initialOffsetY = { it / 2 },
+                                        animationSpec = tween(600)
+                                    ) + fadeIn(animationSpec = tween(600)),
+                                    modifier = Modifier.animateItemPlacement()
+                                ) {
+                                    PlanCardWithParticipationTheme(
+                                        plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                            id = plan.id,
+                                            userId = plan.userId,
+                                            title = plan.title,
+                                            description = plan.description,
+                                            date = 0,
+                                            timeString = plan.timeString,
+                                            location = plan.location,
+                                            imageUrls = plan.imageUrls,
+                                            likes = plan.likes,
+                                            participants = plan.participants,
+                                            shares = plan.shares,
+                                            createdAt = System.currentTimeMillis(),
+                                            commentCount = plan.commentCount ?: 0
+                                        ),
+                                        onPlanClick = { navigateToDetail_Plan(plan.id) },
+                                        currentUserId = currentUserId,
+                                        db = db,
+                                        coroutineScope = coroutineScope,
+                                        context = context,
+                                        navigateToUserProfile = navigateToUserProfile,
+                                        navigateToEditPlan = { /* Empty lambda */ },
+                                        navigateToMiPerfil = navigateToMiPerfil,
+                                        navigateToComments = navigateToComments,
+                                        accentColors = accentColors
+                                    )
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
 
-                participatingPlans.isEmpty() -> {
+@Composable
+fun ParticipationLoadingSection(accentColors: List<Color>) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing)
+        ),
+        label = "rotation"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Loading indicator personalizado con tema de participación
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .rotate(rotationAngle)
+            ) {
+                repeat(8) { i ->
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.Gray,
-                                modifier = Modifier.size(64.dp)
+                        modifier = Modifier
+                            .size(12.dp)
+                            .offset(
+                                x = (28f * cos(i * 45f * PI / 180f)).dp,
+                                y = (28f * sin(i * 45f * PI / 180f)).dp
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "No participas en ningún plan aún",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Explora planes y únete a los que te interesen",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(participatingPlans, key = { it.id }) { plan ->
-                            com.santiago.sindesparches.presentation.home.PlanCard(
-                                plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
-                                    id = plan.id,
-                                    userId = plan.userId,
-                                    title = plan.title,
-                                    description = plan.description,
-                                    date = 0,
-                                    timeString = plan.timeString,
-                                    location = plan.location,
-                                    imageUrls = plan.imageUrls,
-                                    likes = plan.likes,
-                                    participants = plan.participants,
-                                    shares = plan.shares,
-                                    createdAt = System.currentTimeMillis(),
-                                    commentCount = plan.commentCount
+                            .background(
+                                accentColors[i % accentColors.size].copy(
+                                    alpha = 0.3f + 0.7f * ((rotationAngle / 45f + i) % 8f) / 8f
                                 ),
-                                onPlanClick = { navigateToDetail_Plan(plan.id) },
-                                currentUserId = currentUserId,
-                                db = db,
-                                coroutineScope = coroutineScope,
-                                context = context,
-                                navigateToUserProfile = navigateToUserProfile,
-                                navigateToEditPlan = {},
-                                navigateToMiPerfil = navigateToMiPerfil,
-                                navigateToComments = navigateToComments
+                                CircleShape
                             )
-                        }
-                    }
+                    )
                 }
             }
+
+            Text(
+                "Cargando tus participaciones...",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun ParticipationErrorSection(
+    errorMessage: String,
+    onRetry: () -> Unit,
+    accentColors: List<Color>
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFE74660),
+                                Color(0xFFF39C12)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            Text(
+                errorMessage,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent
+                ),
+                modifier = Modifier
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF3498DB),
+                                Color(0xFF1ABC9C)
+                            )
+                        ),
+                        shape = RoundedCornerShape(25.dp)
+                    )
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    "Reintentar",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ParticipationEmptySection(accentColors: List<Color>) {
+    val infiniteTransition = rememberInfiniteTransition(label = "empty")
+    val groupScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "groupScale"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .scale(groupScale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF3498DB).copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = Color(0xFF3498DB),
+                    modifier = Modifier.size(60.dp)
+                )
+            }
+
+            Text(
+                "¡Únete a eventos increíbles!",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                "Participa en eventos que te interesen y aparecerán aquí para que no los olvides",
+                color = Color.White.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// Extensión para aplicar tema nocturno al PlanCard con enfoque en participación
+@Composable
+fun PlanCardWithParticipationTheme(
+    plan: com.santiago.sindesparches.presentation.publicaciones.Plan,
+    onPlanClick: () -> Unit,
+    currentUserId: String,
+    db: FirebaseFirestore,
+    coroutineScope: CoroutineScope,
+    context: Context,
+    navigateToUserProfile: (String) -> Unit,
+    navigateToEditPlan: () -> Unit,
+    navigateToMiPerfil: () -> Unit,
+    navigateToComments: (String) -> Unit,
+    accentColors: List<Color>
+) {
+    // Crear un CompositionLocalProvider para personalizar los colores
+    CompositionLocalProvider(
+        LocalContentColor provides Color.White
+    ) {
+        // Wrapper con efectos visuales enfocados en participación
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.15f),
+                            Color.White.copy(alpha = 0.05f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(1.dp) // Para el borde
+        ) {
+            // Borde con gradiente de participación (azul-verde)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF3498DB), // Azul brillante
+                                Color(0xFF1ABC9C), // Verde esmeralda
+                                Color(0xFF9B59B6)  // Púrpura vibrante
+                            )
+                        )
+                    )
+            )
+
+            // PlanCard original
+            com.santiago.sindesparches.presentation.home.PlanCard(
+                plan = plan,
+                onPlanClick = onPlanClick,
+                currentUserId = currentUserId,
+                db = db,
+                coroutineScope = coroutineScope,
+                context = context,
+                navigateToUserProfile = navigateToUserProfile,
+                navigateToEditPlan = { _ -> navigateToEditPlan() },
+                navigateToMiPerfil = navigateToMiPerfil,
+                navigateToComments = navigateToComments
+            )
         }
     }
 }
@@ -508,27 +841,4 @@ fun UserItem(
         )
     }
 }
-fun formatCount(count: Int): String {
-    return when {
-        count < 1000 -> count.toString()
-        count < 1000000 -> "${count / 1000}k"
-        else -> "${count / 1000000}m"
-    }
-}
 
-fun formatTimeAgo(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-
-    return when {
-        diff < 60000 -> "Hace un momento"
-        diff < 3600000 -> "${diff / 60000}m"
-        diff < 86400000 -> "${diff / 3600000}h"
-        diff < 2592000000 -> "${diff / 86400000}d"
-        else -> "${diff / 2592000000}m"
-    }
-}
-
-fun formatDate(dateString: String): String {
-    return dateString
-}

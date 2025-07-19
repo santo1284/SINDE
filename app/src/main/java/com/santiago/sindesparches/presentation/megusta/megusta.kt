@@ -1,13 +1,29 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.santiago.sindesparches.presentation.megusta
 
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +40,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -40,8 +61,14 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.white
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+
+
 // Data class para los planes
 data class Plan(
     val id: String = "",
@@ -67,13 +94,6 @@ data class UserProfile(
     val email: String? = null
 )
 
-// Nueva data class para mostrar información de usuario en los diálogos
-data class UserInfo(
-    val id: String,
-    val name: String,
-    val profileImageUrl: String?
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun megustascreen(
@@ -92,6 +112,36 @@ fun megustascreen(
     var likedPlans by remember { mutableStateOf<List<Plan>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Animaciones
+    val infiniteTransition = rememberInfiniteTransition(label = "background")
+    val gradientOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradient"
+    )
+
+    // Colores vibrantes para tema nocturno
+    val nightColors = listOf(
+        Color(0xFF130000), // Azul marino profundo
+        Color(0xFF230101), // Azul oscuro
+        Color(0xFF460101), // Azul medianoche
+        Color(0xFF230101), // Azul oscuro
+        Color(0xFF130000), // Púrpura profundo
+    )
+
+    val accentColors = listOf(
+        Color(0xFFE94560), // Rojo vibrante
+        Color(0xFFF39C12), // Naranja dorado
+        Color(0xFF9B59B6), // Púrpura vibrante
+        Color(0xFF3498DB), // Azul brillante
+        Color(0xFF1ABC9C), // Verde esmeralda
+        Color(0xFFE74C3C), // Rojo coral
+    )
 
     // Función para recargar los datos
     fun reloadData() {
@@ -156,378 +206,435 @@ fun megustascreen(
         reloadData()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Planes que me gustan",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = navigatehome) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    val gradientOffsetfondo by rememberInfiniteTransition().animateFloat(
+        initialValue = -1f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+// Fondo animado
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = nightColors,
+                    startY = gradientOffsetfondo * 2000f, // Usa size.height en lugar de 1000f
+                    endY = (gradientOffsetfondo + 2f) * 2000f // Aumenta el multiplicador para cubrir toda la pantalla
                 )
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    ) {
+        // Si tienes una línea específica animada, asegúrate de que use toda la altura:
+        Canvas(
+            modifier = Modifier.fillMaxSize()
         ) {
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator(color = Color.White)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "Cargando planes...",
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
 
-                errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+            // partículas existentes...
+            val particleCount = 100
+            repeat(particleCount) { i ->
+                val x = (i * 137.5f + gradientOffset * 200f) % size.width
+                val y = (i * 73.2f + gradientOffset * 150f) % size.height
+                val radius = (2f + sin(gradientOffset * 2f + i) * 1.5f).coerceAtLeast(0.5f)
+
+                drawCircle(
+                    color = accentColors[i % accentColors.size].copy(alpha = 0.3f),
+                    radius = radius,
+                    center = Offset(x, y)
+                )
+            }
+        }
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = null,
-                                tint = Color.Red,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                errorMessage!!,
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { reloadData() }) {
-                                Text("Reintentar")
+                            // Icono con glow effect
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                Color(0xFFE94560),
+                                                Color(0xFFF31212)
+                                            )
+                                        ),
+                                        shape = CircleShape
+                                    )
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
-                        }
-                    }
-                }
 
-                likedPlans.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(32.dp)
+                            Text(
+                                "Mis Favoritos",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color.White,
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = navigatehome,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.1f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
-                                Icons.Default.FavoriteBorder,
-                                contentDescription = null,
-                                tint = Color.Gray,
-                                modifier = Modifier.size(64.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "No has dado 'Me gusta' a ningún plan aún",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Explora planes y dale 'Me gusta' a los que te interesen",
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyMedium,
-                                textAlign = TextAlign.Center
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(likedPlans, key = { it.id }) { plan ->
-                            com.santiago.sindesparches.presentation.home.PlanCard(
-                                plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
-                                    id = plan.id,
-                                    userId = plan.userId,
-                                    title = plan.title,
-                                    description = plan.description,
-                                    date = 0,
-                                    timeString = plan.timeString,
-                                    location = plan.location,
-                                    imageUrls = plan.imageUrls,
-                                    likes = plan.likes,
-                                    participants = plan.participants,
-                                    shares = plan.shares,
-                                    createdAt = System.currentTimeMillis(),
-                                    commentCount = plan.commentCount
-                                ),
-                                onPlanClick = { navigateToDetail_Plan(plan.id) },
-                                currentUserId = currentUserId,
-                                db = db,
-                                coroutineScope = coroutineScope,
-                                context = context,
-                                navigateToUserProfile = navigateToUserProfile,
-                                navigateToEditPlan = {},
-                                navigateToMiPerfil = navigateToMiPerfil,
-                                navigateToComments = navigateToComments
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-fun UserListDialog(
-    title: String,
-    userIds: List<String>,
-    db: FirebaseFirestore,
-    onDismiss: () -> Unit,
-    onUserClick: (String) -> Unit
-) {
-    var users by remember { mutableStateOf<List<UserInfo>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Cargar información de los usuarios
-    LaunchedEffect(userIds) {
-        if (userIds.isNotEmpty()) {
-            try {
-                isLoading = true
-                errorMessage = null
-
-                val userInfoList = mutableListOf<UserInfo>()
-                val storage = FirebaseStorage.getInstance().reference
-
-                for (userId in userIds) {
-                    try {
-                        val userDoc = db.collection("perfil").document(userId).get().await()
-                        val userName = userDoc.getString("nombre") ?: "Usuario"
-
-                        // Intentar obtener la imagen del storage primero
-                        var profileImageUrl: String? = null
-                        try {
-                            val storageRef = storage.child("profile_pictures/$userId")
-                            val uri = storageRef.downloadUrl.await()
-                            profileImageUrl = uri.toString()
-                        } catch (e: Exception) {
-                            // Si falla, usar la URL del documento
-                            profileImageUrl = userDoc.getString("profileImageUrl")
-                        }
-
-                        userInfoList.add(
-                            UserInfo(
-                                id = userId,
-                                name = userName,
-                                profileImageUrl = profileImageUrl
-                            )
-                        )
-                    } catch (e: Exception) {
-                        Log.e("UserListDialog", "Error al cargar usuario $userId", e)
-                        // Añadir usuario con información básica si hay error
-                        userInfoList.add(
-                            UserInfo(
-                                id = userId,
-                                name = "Usuario",
-                                profileImageUrl = null
-                            )
-                        )
-                    }
-                }
-
-                users = userInfoList
-                isLoading = false
-            } catch (e: Exception) {
-                Log.e("UserListDialog", "Error general al cargar usuarios", e)
-                errorMessage = "Error al cargar usuarios"
-                isLoading = false
-            }
-        } else {
-            isLoading = false
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    modifier = Modifier.statusBarsPadding()
+                )
+            },
+            containerColor = Color.Transparent
+        ) { paddingValues ->
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
+                    .fillMaxSize()
+                    .padding(paddingValues)
             ) {
                 when {
                     isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        LoadingSection(accentColors)
                     }
 
                     errorMessage != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = errorMessage!!,
-                                color = Color.Red,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        ErrorSection(
+                            errorMessage = errorMessage!!,
+                            onRetry = { reloadData() },
+                            accentColors = accentColors
+                        )
                     }
 
-                    users.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No hay usuarios para mostrar",
-                                color = Color.Gray,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                    likedPlans.isEmpty() -> {
+                        EmptySection(accentColors)
                     }
 
                     else -> {
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(users) { user ->
-                                UserItem(
-                                    user = user,
-                                    onClick = { onUserClick(user.id) }
-                                )
+                            items(likedPlans, key = { it.id }) { plan ->
+                                AnimatedVisibility(
+                                    visible = true,
+                                    enter = slideInVertically(
+                                        initialOffsetY = { it / 2 },
+                                        animationSpec = tween(600)
+                                    ) + fadeIn(animationSpec = tween(600)),
+                                    modifier = Modifier.animateItemPlacement()
+                                ) {
+                                    PlanCardWithNightTheme(
+                                        plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                            id = plan.id,
+                                            userId = plan.userId,
+                                            title = plan.title,
+                                            description = plan.description,
+                                            date = 0,
+                                            timeString = plan.timeString,
+                                            location = plan.location,
+                                            imageUrls = plan.imageUrls,
+                                            likes = plan.likes,
+                                            participants = plan.participants,
+                                            shares = plan.shares,
+                                            createdAt = System.currentTimeMillis(),
+                                            commentCount = plan.commentCount ?: 0
+                                        ),
+                                        onPlanClick = { navigateToDetail_Plan(plan.id) },
+                                        currentUserId = currentUserId,
+                                        db = db,
+                                        coroutineScope = coroutineScope,
+                                        context = context,
+                                        navigateToUserProfile = navigateToUserProfile,
+                                        navigateToEditPlan = { /* Empty lambda */ },
+                                        navigateToMiPerfil = navigateToMiPerfil,
+                                        navigateToComments = navigateToComments,
+                                        accentColors = accentColors
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface
-    )
+        }
+    }
 }
 
 @Composable
-fun UserItem(
-    user: UserInfo,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun LoadingSection(accentColors: List<Color>) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing)
+        ),
+        label = "rotation"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        // Imagen de perfil
-        AsyncImage(
-            model = user.profileImageUrl,
-            contentDescription = "Foto de perfil de ${user.name}",
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .border(
-                    width = 1.dp,
-                    color = Color.Gray,
-                    shape = CircleShape
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Loading indicator personalizado
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .rotate(rotationAngle)
+            ) {
+                repeat(8) { i ->
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .offset(
+                                x = (28f * cos(i * 45f * PI / 180f)).dp,
+                                y = (28f * sin(i * 45f * PI / 180f)).dp
+                            )
+                            .background(
+                                accentColors[i % accentColors.size].copy(
+                                    alpha = 0.3f + 0.7f * ((rotationAngle / 45f + i) % 8f) / 8f
+                                ),
+                                CircleShape
+                            )
+                    )
+                }
+            }
+
+            Text(
+                "Cargando tus eventos favoritos...",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun ErrorSection(
+    errorMessage: String,
+    onRetry: () -> Unit,
+    accentColors: List<Color>
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFE74660),
+                                Color(0xFFF39C12)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Close, // Fixed: Changed from ErrorOutline to Error
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            Text(
+                errorMessage,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent
                 ),
-            contentScale = ContentScale.Crop,
-            error = painterResource(id = android.R.drawable.ic_menu_myplaces),
-            placeholder = painterResource(id = android.R.drawable.ic_menu_myplaces)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Nombre del usuario
-        Text(
-            text = user.name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Icono de flecha para indicar que es clickeable
-        Icon(
-            Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = "Ir al perfil",
-            tint = Color.Gray,
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
-fun formatCount(count: Int): String {
-    return when {
-        count < 1000 -> count.toString()
-        count < 1000000 -> "${count / 1000}k"
-        else -> "${count / 1000000}m"
+                modifier = Modifier
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFFE94560),
+                                Color(0xFFF39C12)
+                            )
+                        ),
+                        shape = RoundedCornerShape(25.dp)
+                    )
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    "Reintentar",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
-fun formatTimeAgo(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
+@Composable
+fun EmptySection(accentColors: List<Color>) {
+    val infiniteTransition = rememberInfiniteTransition(label = "empty")
+    val heartScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "heartScale"
+    )
 
-    return when {
-        diff < 60000 -> "Hace un momento"
-        diff < 3600000 -> "${diff / 60000}m"
-        diff < 86400000 -> "${diff / 3600000}h"
-        diff < 2592000000 -> "${diff / 86400000}d"
-        else -> "${diff / 2592000000}m"
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .scale(heartScale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFE94560).copy(alpha = 0.3f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.FavoriteBorder,
+                    contentDescription = null,
+                    tint = Color(0xFFE94560),
+                    modifier = Modifier.size(60.dp)
+                )
+            }
+
+            Text(
+                "¡Explora y encuentra eventos increíbles!",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                "Dale 'Me gusta' a los eventos que más te emocionen y aparecerán aquí",
+                color = Color.White.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
-fun formatDate(dateString: String): String {
-    return dateString
+// Extensión para aplicar tema nocturno al PlanCard original
+@Composable
+fun PlanCardWithNightTheme(
+    plan: com.santiago.sindesparches.presentation.publicaciones.Plan,
+    onPlanClick: () -> Unit,
+    currentUserId: String,
+    db: FirebaseFirestore,
+    coroutineScope: CoroutineScope,
+    context: Context,
+    navigateToUserProfile: (String) -> Unit,
+    navigateToEditPlan: () -> Unit,
+    navigateToMiPerfil: () -> Unit,
+    navigateToComments: (String) -> Unit,
+    accentColors: List<Color>
+) {
+    // Crear un CompositionLocalProvider para personalizar los colores
+    CompositionLocalProvider(
+        LocalContentColor provides Color.White
+    ) {
+        // Wrapper con efectos visuales
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.15f),
+                            Color.White.copy(alpha = 0.05f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(1.dp) // Para el borde
+        ) {
+            // Borde con gradiente
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = accentColors.take(3)
+                        )
+                    )
+            )
+
+            // PlanCard original - removed invalid parameters
+            com.santiago.sindesparches.presentation.home.PlanCard(
+                plan = plan,
+                onPlanClick = onPlanClick,
+                currentUserId = currentUserId,
+                db = db,
+                coroutineScope = coroutineScope,
+                context = context,
+                navigateToUserProfile = navigateToUserProfile,
+                navigateToEditPlan = { _ -> navigateToEditPlan() },
+                navigateToMiPerfil = navigateToMiPerfil,
+                navigateToComments = navigateToComments
+            )
+        }
+    }
 }

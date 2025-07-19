@@ -3,7 +3,17 @@ package com.santiago.sindesparches.presentation.plan_detail
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -47,8 +57,16 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.santiago.sindesparches.ui.theme.boton
+import kotlin.math.PI
+import kotlin.math.sin
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,27 +77,62 @@ fun PlanDetailScreen(
     db: FirebaseFirestore,
     navigateBack: () -> Unit,
     navigateToEdit: (String) -> Unit,
-    navigateToUserProfile: (String) -> Unit // Nuevo parámetro para navegar al perfil
+    navigateToUserProfile: (String) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var plan by remember { mutableStateOf<Plan?>(null) }
-    var userProfile by remember { mutableStateOf<UserProfile?>(null) } // Estado para el perfil del usuario
-    var userProfileImageUrl by remember { mutableStateOf<String?>(null) } // URL de la imagen de perfil
+    var userProfile by remember { mutableStateOf<UserProfile?>(null) }
+    var userProfileImageUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    //contexto para abrir WhatsApp
-    val context = LocalContext.current
+    // Animaciones
+    val infiniteTransition = rememberInfiniteTransition()
+    val gradientAnimation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
 
-    //imagen desde firebase
+    val pulseAnimation by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // Estados de animación
+    val scrollState = rememberScrollState()
+    val cardAnimation by animateFloatAsState(
+        targetValue = if (isLoading) 0f else 1f,
+        animationSpec = tween(800, easing = FastOutSlowInEasing)
+    )
+
+    val context = LocalContext.current
     var imagen_usuario by remember { mutableStateOf<String?>(null) }
     val storage = FirebaseStorage.getInstance().reference
     val storageRef = storage.child("profile_pictures/${plan?.userId}")
+
     storageRef.downloadUrl.addOnSuccessListener { uri ->
         imagen_usuario = uri.toString()
-    }.addOnSuccessListener {  }
+    }.addOnFailureListener { }
+
+    // Colores del tema nocturno vibrante
+    val nightBackground = Color(0xFF0A0E27)
+    val deepPurple = Color(0xFF6366F1)
+    val vibrantPink = Color(0xFFEC4899)
+    val electricBlue = Color(0xFF06B6D4)
+    val neonGreen = Color(0xFF10B981)
+    val goldAccent = Color(0xFFF59E0B)
+    val cardBackground = Color(0xFF1A1D3A)
+    val surfaceVariant = Color(0xFF2D2F4F)
 
     // Cargar los detalles del plan al iniciar
     LaunchedEffect(planId) {
@@ -87,7 +140,6 @@ fun PlanDetailScreen(
             try {
                 isLoading = true
                 plan = getPlanById(db, planId)
-                // Cargar información del perfil del usuario creador
                 plan?.userId?.let { userId ->
                     userProfile = getUserProfileById(db, userId)
                 }
@@ -99,377 +151,743 @@ fun PlanDetailScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(plan?.title ?: "Detalles del Plan", color = MaterialTheme.colorScheme.onSurface) },
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.Close, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                },
-                actions = {
-                    // Solo mostrar opciones de edición si el usuario es el creador
-                    if (plan?.userId == auth.currentUser?.uid) {
-                        IconButton(onClick = { navigateToEdit(planId) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Editar Plan", tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                        IconButton(onClick = { showDeleteConfirmation = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar Plan", tint = MaterialTheme.colorScheme.onSurface)
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        nightBackground,
+                        nightBackground.copy(alpha = 0.9f),
+                        Color(0xFF1A1D3A)
+                    )
                 )
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.background(MaterialTheme.colorScheme.background)) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    ) {
+        // Fondo animado con partículas
+        Canvas(
+            modifier = Modifier.fillMaxSize()
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (errorMessage != null) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = errorMessage ?: "Error desconocido",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                try {
-                                    errorMessage = null
-                                    isLoading = true
-                                    plan = getPlanById(db, planId)
-                                    plan?.userId?.let { userId ->
-                                        userProfile = getUserProfileById(db, userId)
-                                    }
-                                    isLoading = false
-                                } catch (e: Exception) {
-                                    errorMessage = "Error al cargar el plan: ${e.message}"
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Reintentar")
-                    }
-                }
-            } else if (plan == null) {
-                Text(
-                    text = "No se encontró el plan",
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp)
-                )
-            } else {
+            val width = size.width
+            val height = size.height
 
-                // Contenido del detalle del plan
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    // Información del usuario creador
-                    userProfile?.let { profile ->
-                        Surface(
+            // Estrellas animadas
+            for (i in 0..20) {
+                val x = (width * (i * 0.123f + gradientAnimation * 0.1f)) % width
+                val y = (height * (i * 0.456f + gradientAnimation * 0.05f)) % height
+                val alpha = (sin(gradientAnimation * PI * 2 + i) * 0.5f + 0.5f).toFloat()
+
+                drawCircle(
+                    color = electricBlue.copy(alpha = alpha * 0.6f),
+                    radius = 2f + sin(gradientAnimation * PI * 2 + i).toFloat() * 1f,
+                    center = Offset(x, y)
+                )
+            }
+        }
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = plan?.title ?: "Detalles del Plan",
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                shadow = Shadow(
+                                    color = vibrantPink.copy(alpha = 0.5f),
+                                    blurRadius = 8f
+                                )
+                            ),
+                            color = Color.White
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = navigateBack,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .clickable {
-                                    // ✅ VALIDAR que tengamos userId antes de navegar
-                                    plan?.userId?.let { userId ->
-                                        if (userId.isNotBlank()) {
-                                            Log.d("PlanDetail", "Navegando al perfil de usuario: $userId")
-                                            navigateToUserProfile(userId)
-                                        } else {
-                                            Log.e("PlanDetail", "UserId del plan está vacío")
-                                        }
-                                    } ?: Log.e("PlanDetail", "Plan o userId es null")
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            deepPurple.copy(alpha = 0.3f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                                .padding(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Imagen de perfil redondeada
-                                AsyncImage(
-                                    model = imagen_usuario ?: R.drawable.bxs_user, // Placeholder si no hay imagen
-                                    contentDescription = "Foto de perfil",
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = "Creado por",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = profile.nombre ?: "Usuario",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                // Icono para indicar que es clickable
-                                Icon(
-                                    Icons.Default.KeyboardArrowRight,
-                                    contentDescription = "Ver perfil",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Imágenes del plan
-                    if (plan!!.imageUrls.isNotEmpty()) {
-                        if (plan!!.imageUrls.size == 1) {
-                            AsyncImage(
-                                model = plan!!.imageUrls.first(),
-                                contentDescription = "Imagen del plan",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp)
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = Color.White
                             )
-                        } else {
-                            LazyRow(
+                        }
+                    },
+                    actions = {
+                        if (plan?.userId == auth.currentUser?.uid) {
+                            IconButton(
+                                onClick = { navigateToEdit(planId) },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp)
-                            ) {
-                                items(plan!!.imageUrls) { imageUrl ->
-                                    AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = "Imagen del plan",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillParentMaxHeight()
-                                            .width(400.dp)
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                neonGreen.copy(alpha = 0.3f),
+                                                Color.Transparent
+                                            )
+                                        ),
+                                        shape = CircleShape
                                     )
-                                }
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Editar Plan",
+                                    tint = Color.White
+                                )
+                            }
+                            IconButton(
+                                onClick = { showDeleteConfirmation = true },
+                                modifier = Modifier
+                                    .background(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                Color.Red.copy(alpha = 0.3f),
+                                                Color.Transparent
+                                            )
+                                        ),
+                                        shape = CircleShape
+                                    )
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Eliminar Plan",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+            },
+            snackbarHost = {
+                SnackbarHost(
+                    snackbarHostState,
+                    modifier = Modifier.background(Color.Transparent)
+                )
+            },
+            containerColor = Color.Transparent
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        deepPurple.copy(alpha = 0.3f),
+                                        Color.Transparent
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .scale(pulseAnimation),
+                                color = vibrantPink,
+                                strokeWidth = 4.dp
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Cargando evento...",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    shadow = Shadow(
+                                        color = electricBlue.copy(alpha = 0.5f),
+                                        blurRadius = 8f
+                                    )
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else if (errorMessage != null) {
+                    Card(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp)
+                            .scale(cardAnimation),
+                        colors = CardDefaults.cardColors(
+                            containerColor = cardBackground
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = errorMessage ?: "Error desconocido",
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        try {
+                                            errorMessage = null
+                                            isLoading = true
+                                            plan = getPlanById(db, planId)
+                                            plan?.userId?.let { userId ->
+                                                userProfile = getUserProfileById(db, userId)
+                                            }
+                                            isLoading = false
+                                        } catch (e: Exception) {
+                                            errorMessage = "Error al cargar el plan: ${e.message}"
+                                            isLoading = false
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = vibrantPink
+                                ),
+                                shape = RoundedCornerShape(25.dp)
+                            ) {
+                                Text("Reintentar", color = Color.White)
                             }
                         }
                     }
-
-                    // Información detallada del plan
+                } else if (plan == null) {
+                    Card(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp)
+                            .scale(cardAnimation),
+                        colors = CardDefaults.cardColors(
+                            containerColor = cardBackground
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = "No se encontró el evento",
+                            modifier = Modifier.padding(24.dp),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                } else {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .graphicsLayer {
+                                alpha = cardAnimation
+                                translationY = (1f - cardAnimation) * 100f
+                            }
                     ) {
-                        // Título
-                        Text(
-                            text = plan!!.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        // Información del usuario creador con diseño mejorado
+                        userProfile?.let { profile ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .clickable {
+                                        plan?.userId?.let { userId ->
+                                            if (userId.isNotBlank()) {
+                                                navigateToUserProfile(userId)
+                                            }
+                                        }
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = cardBackground
+                                ),
+                                shape = RoundedCornerShape(20.dp),
+                                elevation = CardDefaults.cardElevation(
+                                    defaultElevation = 8.dp
+                                )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    deepPurple.copy(alpha = 0.3f),
+                                                    vibrantPink.copy(alpha = 0.3f),
+                                                    electricBlue.copy(alpha = 0.3f)
+                                                )
+                                            )
+                                        )
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Imagen de perfil con efecto glow
+                                        Box(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .background(
+                                                    brush = Brush.radialGradient(
+                                                        colors = listOf(
+                                                            vibrantPink.copy(alpha = 0.5f),
+                                                            Color.Transparent
+                                                        )
+                                                    ),
+                                                    shape = CircleShape
+                                                )
+                                                .padding(2.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = imagen_usuario ?: R.drawable.bxs_user,
+                                                contentDescription = "Foto de perfil",
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(CircleShape)
+                                                    .border(
+                                                        2.dp,
+                                                        brush = Brush.linearGradient(
+                                                            colors = listOf(
+                                                                vibrantPink,
+                                                                electricBlue
+                                                            )
+                                                        ),
+                                                        CircleShape
+                                                    ),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
 
+                                        Spacer(modifier = Modifier.width(16.dp))
 
+                                        Column {
+                                            Text(
+                                                text = "Creado por",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    shadow = Shadow(
+                                                        color = electricBlue.copy(alpha = 0.5f),
+                                                        blurRadius = 4f
+                                                    )
+                                                ),
+                                                color = Color.White.copy(alpha = 0.8f)
+                                            )
+                                            Text(
+                                                text = profile.nombre ?: "Usuario",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    shadow = Shadow(
+                                                        color = vibrantPink.copy(alpha = 0.5f),
+                                                        blurRadius = 8f
+                                                    )
+                                                ),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = Color.White
+                                            )
+                                        }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                                        Spacer(modifier = Modifier.weight(1f))
 
-                        // Fecha y hora
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.DateRange,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = formatDate(plan!!.date),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                                        Icon(
+                                            Icons.Default.KeyboardArrowRight,
+                                            contentDescription = "Ver perfil",
+                                            tint = vibrantPink,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = plan!!.timeString,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                        // Imágenes del plan con efecto paralax
+                        if (plan!!.imageUrls.isNotEmpty()) {
+                            val parallaxOffset = scrollState.value * 0.5f
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .height(350.dp),
+                                shape = RoundedCornerShape(25.dp),
+                                elevation = CardDefaults.cardElevation(
+                                    defaultElevation = 12.dp
+                                )
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    if (plan!!.imageUrls.size == 1) {
+                                        AsyncImage(
+                                            model = plan!!.imageUrls.first(),
+                                            contentDescription = "Imagen del plan",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    translationY = parallaxOffset
+                                                }
+                                        )
+                                    } else {
+                                        LazyRow(
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            items(plan!!.imageUrls) { imageUrl ->
+                                                AsyncImage(
+                                                    model = imageUrl,
+                                                    contentDescription = "Imagen del plan",
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .fillParentMaxHeight()
+                                                        .width(350.dp)
+                                                        .graphicsLayer {
+                                                            translationY = parallaxOffset
+                                                        }
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                            }
+                                        }
+                                    }
+
+                                    // Overlay gradient
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.3f)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                }
+                            }
                         }
 
-                        // Ubicación
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Place,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = plan!!.location,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Descripción
-                        Text(
-                            text = "Descripción",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Surface(
+                        // Información detallada del plan
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ) {
-                            Text(
-                                text = plan!!.description,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.onSurface
+                                .padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = cardBackground
+                            ),
+                            shape = RoundedCornerShape(25.dp),
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = 8.dp
                             )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp)
+                            ) {
+                                // Título con efecto glow
+                                Text(
+                                    text = plan!!.title,
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        shadow = Shadow(
+                                            color = vibrantPink.copy(alpha = 0.7f),
+                                            blurRadius = 12f
+                                        )
+                                    ),
+                                    color = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // Fecha y hora con iconos animados
+                                InfoRow(
+                                    icon = Icons.Filled.DateRange,
+                                    text = formatDate(plan!!.date),
+                                    color = neonGreen
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                InfoRow(
+                                    icon = Icons.Filled.DateRange,
+                                    text = plan!!.timeString,
+                                    color = goldAccent
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                InfoRow(
+                                    icon = Icons.Filled.Place,
+                                    text = plan!!.location,
+                                    color = electricBlue
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // Descripción con fondo gradiente
+                                Text(
+                                    text = "Descripción",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        shadow = Shadow(
+                                            color = deepPurple.copy(alpha = 0.7f),
+                                            blurRadius = 8f
+                                        )
+                                    ),
+                                    color = Color.White
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = surfaceVariant
+                                    ),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                brush = Brush.linearGradient(
+                                                    colors = listOf(
+                                                        surfaceVariant,
+                                                        surfaceVariant.copy(alpha = 0.8f)
+                                                    )
+                                                )
+                                            )
+                                    ) {
+                                        Text(
+                                            text = plan!!.description,
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                lineHeight = 24.sp
+                                            ),
+                                            modifier = Modifier.padding(20.dp),
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // Fecha de creación
+                                Text(
+                                    text = "Publicado el ${formatFullDate(plan!!.createdAt)}",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        shadow = Shadow(
+                                            color = electricBlue.copy(alpha = 0.5f),
+                                            blurRadius = 4f
+                                        )
+                                    ),
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Fecha de creación
-                        Text(
-                            text = "Publicado el ${formatFullDate(plan!!.createdAt)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Botón de WhatsApp - Solo se muestra si enableWhatsapp es true
+                        // Botón de WhatsApp con animación
                         if (plan!!.enableWhatsapp == true && plan!!.phoneNumber != null) {
                             val message = "Hola, estoy interesado en el plan: ${plan!!.title}"
                             val encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8.toString())
                             val whatsappUrl = "https://api.whatsapp.com/send?phone=${plan!!.phoneNumber}&text=$encodedMessage"
 
-                            Button(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(whatsappUrl))
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("WhatsApp no instalado")
-                                        }
-                                    }
-                                },
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondary
+                                    .padding(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.Transparent
                                 ),
-                                shape = RoundedCornerShape(50)
+                                shape = RoundedCornerShape(30.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.bxl_whatsapp),
-                                        contentDescription = "WhatsApp",
-                                        tint = MaterialTheme.colorScheme.onSecondary
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(whatsappUrl))
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("WhatsApp no instalado")
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(60.dp)
+                                        .background(
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    neonGreen,
+                                                    Color(0xFF25D366)
+                                                )
+                                            ),
+                                            shape = RoundedCornerShape(30.dp)
+                                        ),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(30.dp),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = 8.dp,
+                                        pressedElevation = 12.dp
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Contactar por WhatsApp", color = MaterialTheme.colorScheme.onSecondary)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.bxl_whatsapp),
+                                            contentDescription = "WhatsApp",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            "Contactar por WhatsApp",
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
             }
         }
     }
 
-    // Diálogo de confirmación para eliminar
+    // Diálogo de confirmación para eliminar con diseño mejorado
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Eliminar plan") },
-            text = { Text("¿Estás seguro de que quieres eliminar este plan? Esta acción no se puede deshacer.") },
+            title = {
+                Text(
+                    "Eliminar evento",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        shadow = Shadow(
+                            color = Color.Red.copy(alpha = 0.5f),
+                            blurRadius = 8f
+                        )
+                    ),
+                    color = Color.White
+                )
+            },
+            text = {
+                Text(
+                    "¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         coroutineScope.launch {
                             try {
                                 deletePlan(db, planId)
-                                snackbarHostState.showSnackbar("Plan eliminado correctamente")
+                                snackbarHostState.showSnackbar("Evento eliminado correctamente")
                                 navigateBack()
                             } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Error al eliminar el plan: ${e.message}")
+                                snackbarHostState.showSnackbar("Error al eliminar el evento: ${e.message}")
                             }
                             showDeleteConfirmation = false
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                        containerColor = Color.Red
+                    ),
+                    shape = RoundedCornerShape(25.dp)
                 ) {
-                    Text("Eliminar")
+                    Text("Eliminar", color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
+                TextButton(
+                    onClick = { showDeleteConfirmation = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color.White
+                    )
+                ) {
                     Text("Cancelar")
                 }
-            }
+            },
+            containerColor = cardBackground,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }
 
+@Composable
+fun InfoRow(
+    icon: ImageVector,
+    text: String,
+    color: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.3f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                shadow = Shadow(
+                    color = color.copy(alpha = 0.3f),
+                    blurRadius = 4f
+                )
+            ),
+            color = Color.White
+        )
+    }
+}
 // Función para obtener un plan por su ID
 private suspend fun getPlanById(db: FirebaseFirestore, planId: String): Plan = withContext(Dispatchers.IO) {
     try {

@@ -278,7 +278,8 @@ fun homeScreen(
             nombre_flashplan = resultado
         }
     }
-    // Reemplaza esta sección en tu LaunchedEffect donde cargas los FlashPlans:
+
+    // Reemplaza tu LaunchedEffect actual con esta versión mejorada:
 
     LaunchedEffect(Unit) {
         try {
@@ -290,24 +291,23 @@ fun homeScreen(
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
                         Log.e("HomeScreen", "Error al cargar FlashPlans", e)
-                        Toast.makeText(context, "Error al cargar historias", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(context, "Error al cargar historias", Toast.LENGTH_SHORT).show()
                         isLoading = false
                         return@addSnapshotListener
                     }
 
                     val flashPlanList = mutableListOf<Story>()
-                    val userIds = mutableSetOf<String>() // ← Asegúrate de que esté aquí
+                    val userIds = mutableSetOf<String>()
 
                     snapshot?.documents?.forEach { doc ->
                         val userId = doc.getString("userId") ?: ""
                         val userName = doc.getString("userName") ?: nombre_flashplan.orEmpty()
                         val imageUrl = doc.getString("imageUrl") ?: ""
-                        val timestamp = (doc.getTimestamp("timestamp")?.toDate()?.time
-                            ?: System.currentTimeMillis())
+                        val timestamp = (doc.getTimestamp("timestamp")?.toDate()?.time ?: System.currentTimeMillis())
+
+                        // ✅ Obtener viewers correctamente de Firestore
                         val viewers = doc.get("viewers") as? List<String> ?: emptyList()
 
-                        // ← IMPORTANTE: Agregar el userId al set
                         if (userId.isNotEmpty()) {
                             userIds.add(userId)
                         }
@@ -319,18 +319,33 @@ fun homeScreen(
                                 userId = userId,
                                 username = userName,
                                 timestamp = timestamp,
-                                viewers = viewers
+                                viewers = viewers // ✅ Esto mantendrá el estado actualizado
                             )
                         )
                     }
 
+                    // ✅ Actualizar stories manteniendo el estado de viewers
                     stories = flashPlanList
 
-                    // Cargar imágenes de perfil de los usuarios usando Firebase Storage
+                    // Función para eliminar FlashPlan (mantener como estaba)
+                    fun deleteFlashPlan(flashPlanId: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+                        db.collection("flashPlans").document(flashPlanId)
+                            .delete()
+                            .addOnSuccessListener {
+                                stories = stories.filter { it.id != flashPlanId }
+                                onSuccess()
+                                Log.d("HomeScreen", "FlashPlan eliminado exitosamente")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("HomeScreen", "Error al eliminar FlashPlan", e)
+                                onFailure(e)
+                            }
+                    }
+
+                    // Cargar imágenes de perfil
                     if (userIds.isNotEmpty()) {
                         val profileImagesMap = mutableMapOf<String, String>()
                         userIds.forEach { userId ->
-                            // Usar Firebase Storage en lugar de Firestore
                             val storageRef = FirebaseStorage.getInstance().reference
                                 .child("profile_pictures/$userId")
 
@@ -341,7 +356,7 @@ fun homeScreen(
                                 }
                                 .addOnFailureListener { e ->
                                     Log.e("HomeScreen", "Error al cargar imagen de perfil para usuario $userId", e)
-                                    // Opcional: intentar cargar desde Firestore como respaldo
+                                    // Respaldo con Firestore
                                     db.collection("perfil").document(userId)
                                         .get()
                                         .addOnSuccessListener { userDoc ->
@@ -752,68 +767,93 @@ fun homeScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
+                    // Reemplaza la sección de LazyColumn de los FlashPlans con este código mejorado:
+
                     LazyColumn {
                         items(stories.size) { index ->
                             val story = stories[index]
                             val seen = story.viewers.contains(currentUserId)
+
                             Box(
                                 modifier = Modifier
+                                    .padding(vertical = 4.dp)
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        width = 3.dp,
+                                        color = if (seen) Color.Gray else Color.Magenta,
+                                        shape = CircleShape
+                                    )
                                     .clickable {
                                         showStory = true
                                         currentStory = story
 
-                                        if (!seen && story.userId != currentUserId) {
+                                        // ✅ Marcar como visto SOLO si no ha sido visto antes
+                                        if (!seen) {
+                                            // Primero actualizar el estado local inmediatamente
+                                            stories = stories.map { s ->
+                                                if (s.id == story.id) {
+                                                    s.copy(viewers = s.viewers + currentUserId)
+                                                } else {
+                                                    s
+                                                }
+                                            }
+
+                                            // Luego actualizar en Firestore
                                             db.collection("flashPlans").document(story.id)
-                                                .update(
-                                                    "viewers",
-                                                    FieldValue.arrayUnion(currentUserId)
-                                                )
-                                                .addOnSuccessListener {
-                                                    val updatedStories = stories.map { s ->
+                                                .update("viewers", FieldValue.arrayUnion(currentUserId))
+                                                .addOnFailureListener { e ->
+                                                    Log.e("HomeScreen", "Error al marcar FlashPlan como visto", e)
+                                                    // Revertir el cambio local si falla la actualización
+                                                    stories = stories.map { s ->
                                                         if (s.id == story.id) {
-                                                            s.copy(viewers = s.viewers + currentUserId)
+                                                            s.copy(viewers = s.viewers - currentUserId)
                                                         } else {
                                                             s
                                                         }
                                                     }
-                                                    stories = updatedStories
                                                 }
                                         }
                                     }
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
+                                // Contenido del FlashPlan (imagen de perfil)
+                                val profileImageUrl = userProfileImages[story.userId]
+
+                                if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
                                     AsyncImage(
-                                        model = story.imageUrl,
-                                        contentDescription = null,
+                                        model = profileImageUrl,
+                                        contentDescription = "Perfil de ${story.username}",
                                         modifier = Modifier
-                                            .size(75.dp)
-                                            .clip(CircleShape)
-                                            .border(
-                                                width = 2.dp,
-                                                color = if (seen) Color.Gray else Color.Magenta,
-                                                shape = CircleShape
-                                            ),
-                                        contentScale = ContentScale.Crop,
-                                        error = painterResource(id = android.R.drawable.ic_menu_gallery),
-                                        placeholder = painterResource(id = android.R.drawable.ic_menu_gallery)
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
                                     )
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = if (story.username.length > 8)
-                                            story.username.take(6) + "..."
-                                        else
-                                            story.username,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = Color.White
-                                    )
+                                } else {
+                                    // Imagen por defecto si no hay imagen de perfil
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Gray.copy(alpha = 0.3f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = "Perfil por defecto",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
                                 }
                             }
+
+                            // Nombre del usuario debajo del FlashPlan
+                            Text(
+                                text = story.username.take(8),
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(top = 4.dp),
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
@@ -832,7 +872,7 @@ fun homeScreen(
                     shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                 )
                 .padding(16.dp)
-                .zIndex(2f)
+                .zIndex(4f)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -915,13 +955,48 @@ fun homeScreen(
             }
         }
 
-        // Historia en pantalla completa por 30s
+        // Primero, agrega la función de eliminar dentro de tu homeScreen composable:
+
+        fun deleteFlashPlan(flashPlanId: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+            db.collection("flashPlans").document(flashPlanId)
+                .delete()
+                .addOnSuccessListener {
+                    // Actualizar la lista local inmediatamente
+                    stories = stories.filter { it.id != flashPlanId }
+                    onSuccess()
+                    Log.d("HomeScreen", "FlashPlan eliminado exitosamente")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("HomeScreen", "Error al eliminar FlashPlan", e)
+                    onFailure(e)
+                }
+        }
+        // Historia en pantalla completa por 3s
         if (showStory && currentStory != null) {
             val progress = remember { Animatable(0f) }
 
             LaunchedEffect(currentStory) {
                 progress.snapTo(0f)
-                progress.animateTo(1f, animationSpec = tween(durationMillis = 30000, easing = LinearEasing))
+
+                // Marcar como visto al abrir la historia (si no estaba visto)
+                val seen = currentStory!!.viewers.contains(currentUserId)
+                if (!seen) {
+                    db.collection("flashPlans").document(currentStory!!.id)
+                        .update("viewers", FieldValue.arrayUnion(currentUserId))
+                        .addOnSuccessListener {
+                            val updatedStories = stories.map { s ->
+                                if (s.id == currentStory!!.id) {
+                                    s.copy(viewers = s.viewers + currentUserId)
+                                } else {
+                                    s
+                                }
+                            }
+                            stories = updatedStories
+                            Log.d("HomeScreen", "FlashPlan marcado como visto desde el visor")
+                        }
+                }
+
+                progress.animateTo(1f, animationSpec = tween(durationMillis = 3000, easing = LinearEasing))
                 showStory = false
             }
 
@@ -948,7 +1023,7 @@ fun homeScreen(
                         .padding(8.dp)
                 ) {
                     LinearProgressIndicator(
-                        progress = progress.value,
+                        progress = { progress.value },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),
@@ -997,21 +1072,59 @@ fun homeScreen(
                     }
                 }
 
-                // Botón para cerrar
-                IconButton(
-                    onClick = { showStory = false },
+                // Botones en la parte superior derecha
+                Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = Color.White
-                    )
+                    // Botón de eliminar - Solo visible para el creador del FlashPlan
+                    if (currentStory!!.userId == currentUserId) {
+                        IconButton(
+                            onClick = {
+                                deleteFlashPlan(currentStory!!.id) {
+                                    showStory = false
+                                    currentStory = null
+                                    // Opcional: mostrar mensaje de confirmación
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("FlashPlan eliminado")
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .background(
+                                    Color.Red.copy(alpha = 0.7f),
+                                    shape = CircleShape
+                                )
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Eliminar FlashPlan",
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    // Botón para cerrar
+                    IconButton(
+                        onClick = { showStory = false },
+                        modifier = Modifier
+                            .background(
+                                Color.Black.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            )
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
+
 
         // Diálogo salir
         if (showDialog) {

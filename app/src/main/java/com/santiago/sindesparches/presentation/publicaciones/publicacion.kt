@@ -8,6 +8,11 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,44 +27,60 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -73,6 +94,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -81,6 +103,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -91,6 +114,7 @@ import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.ui.theme.white
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -127,7 +151,11 @@ data class Plan(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> Unit) {
+fun publicacion_screen(
+    auth: FirebaseAuth,
+    db: FirebaseFirestore,
+    navigateToHome: () -> Unit
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -136,6 +164,16 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
+
+    // Estados para animaciones
+    var isFormVisible by remember { mutableStateOf(false) }
+    var currentStep by remember { mutableStateOf(0) }
+
+    // Animación de entrada
+    LaunchedEffect(Unit) {
+        delay(100)
+        isFormVisible = true
+    }
 
     // Estado para el DatePicker
     var showDatePicker by remember { mutableStateOf(false) }
@@ -158,7 +196,6 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            // No sobrepasar el máximo de 5 imágenes
             val remainingSlots = 5 - selectedImages.size
             if (remainingSlots > 0) {
                 val newImages = uris.take(remainingSlots)
@@ -167,13 +204,13 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
         }
     }
 
-    // boton de whatsapp
+    // Estados para WhatsApp
     var enableWhatsapp by remember { mutableStateOf(false) }
     val currentUserId = auth.currentUser?.uid ?: ""
     var phoneNumber by remember { mutableStateOf("") }
     var isLoadingNumero by remember { mutableStateOf(true) }
 
-    // Cargar número de teléfono del usuario desde Firebase
+    // Cargar número de teléfono
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
             try {
@@ -181,386 +218,391 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                     .document(currentUserId)
                     .get()
                     .await()
-
                 phoneNumber = snapshot.getString("celular") ?: "No registrado"
             } catch (e: Exception) {
                 phoneNumber = "Error al cargar"
-                Log.e("UserProfile", "Error loading phone", e)
             } finally {
                 isLoadingNumero = false
             }
         }
     }
 
+    // Colores del tema
+    val primaryColor = Color(0xFF6C5CE7)
+    val accentColor = Color(0xFF00D2FF)
+    val accentSecondary = Color(0xFFFF6B6B)
+    val backgroundDark = Color(0xFF0F0F23)
+    val surfaceDark = Color(0xFF1A1A2E)
+    val surfaceLight = Color(0xFF252547)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear Plan", color = Color.White) },
+                title = {
+                    Text(
+                        "Crear Evento",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (formHasContent(title, description, location, selectedDate, selectedImages)) {
-                            showExitDialog = true
-                        } else {
-                            navigateToHome()
+                    IconButton(
+                        onClick = {
+                            if (formHasContent(title, description, location, selectedDate, selectedImages)) {
+                                showExitDialog = true
+                            } else {
+                                navigateToHome()
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = backgroundDark
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFF1A1A1A)
+        containerColor = backgroundDark
     ) { paddingValues ->
-        Column(
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Título del plan
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Nombre del plan", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color.Gray) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color(0xFF8A2BE2),
-                    unfocusedIndicatorColor = Color.Gray,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent
-                )
-
-
-            )
-
-            // Descripción
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Descripción", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                maxLines = 5,
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color(0xFF8A2BE2),
-                    unfocusedIndicatorColor = Color.Gray,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent
-                )
-
-            )
-
-            // Fecha
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = formattedDate,
-                    onValueChange = { },
-                    label = { Text("Fecha", color = Color.Gray) },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
-                    modifier = Modifier.weight(1f),
-                    readOnly = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedIndicatorColor = Color(0xFF8A2BE2),
-                        unfocusedIndicatorColor = Color.Gray,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    )
-
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = { showDatePicker = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
-                ) {
-                    Text("Seleccionar")
-                }
-            }
-
-            // Hora
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = selectedTime,
-                    onValueChange = { },
-                    label = { Text("Hora", color = Color.Gray) },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Gray) },
-                    modifier = Modifier.weight(1f),
-                    readOnly = true,
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color.White,
-                        focusedIndicatorColor = Color(0xFF8A2BE2),
-                        unfocusedIndicatorColor = Color.Gray,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
-                    )
-
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Button(
-                    onClick = { showTimePicker = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
-                ) {
-                    Text("Seleccionar")
-                }
-            }
-
-            // Ubicación
-            OutlinedTextField(
-                value = location,
-                onValueChange = { location = it },
-                label = { Text("Ubicación", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Color.White,
-                    focusedIndicatorColor = Color(0xFF8A2BE2),
-                    unfocusedIndicatorColor = Color.Gray,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent
-                )
-
-            )
-
-            // Sección para cargar imágenes
-            Text(
-                text = "Imágenes (1-5)",
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color.White
-                ),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Imágenes seleccionadas
-                selectedImages.forEachIndexed { index, uri ->
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                    ) {
-                        AsyncImage(
-                            model = uri,
-                            contentDescription = "Imagen seleccionada $index",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundDark,
+                            Color(0xFF16213E),
+                            backgroundDark
                         )
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .animateContentSize(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
 
-                        // Botón para eliminar imagen
-                        IconButton(
-                            onClick = { selectedImages.removeAt(index) },
+                // Indicador de progreso
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceDark),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    val progress = when {
+                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
+                                && selectedDate != null && selectedTime.isNotBlank() && selectedImages.isNotEmpty() -> 1f
+                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
+                                && selectedDate != null && selectedTime.isNotBlank() -> 0.8f
+                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank() -> 0.6f
+                        title.isNotBlank() && description.isNotBlank() -> 0.4f
+                        title.isNotBlank() -> 0.2f
+                        else -> 0f
+                    }
+
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Progreso del evento",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = progress,
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(24.dp)
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = when {
+                                progress >= 0.8f -> accentColor
+                                progress >= 0.5f -> primaryColor
+                                else -> accentSecondary
+                            },
+                            trackColor = Color.White.copy(alpha = 0.1f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${(progress * 100).toInt()}% completado",
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                // Título del evento
+                AnimatedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = "Nombre del evento",
+                    icon = Icons.Default.Star,
+                    isVisible = isFormVisible,
+                    delay = 100,
+                    primaryColor = primaryColor,
+                    surfaceColor = surfaceLight
+                )
+
+                // Descripción
+                AnimatedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = "¿Qué tienes planeado?",
+                    icon = Icons.Default.Create,
+                    isVisible = isFormVisible,
+                    delay = 200,
+                    primaryColor = primaryColor,
+                    surfaceColor = surfaceLight,
+                    multiline = true,
+                    maxLines = 4
+                )
+
+                // Fecha y Hora
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Fecha
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { showDatePicker = true },
+                        colors = CardDefaults.cardColors(containerColor = surfaceLight),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "Eliminar imagen",
-                                modifier = Modifier.size(16.dp)
+                                Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = primaryColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (formattedDate.isNotEmpty()) formattedDate else "Fecha",
+                                color = if (formattedDate.isNotEmpty()) Color.White else Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
-                }
 
-                // Botón para agregar más imágenes (solo si hay menos de 5)
-                if (selectedImages.size < 5) {
-                    Box(
+                    // Hora
+                    Card(
                         modifier = Modifier
-                            .size(100.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(
-                                BorderStroke(1.dp, Color.Gray),
-                                RoundedCornerShape(8.dp)
-                            )
-                            .clickable { galleryLauncher.launch("image/*") },
-                        contentAlignment = Alignment.Center
+                            .weight(1f)
+                            .clickable { showTimePicker = true },
+                        colors = CardDefaults.cardColors(containerColor = surfaceLight),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Agregar imagen",
-                            modifier = Modifier.size(32.dp)
-                        )
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (selectedTime.isNotEmpty()) selectedTime else "Hora",
+                                color = if (selectedTime.isNotEmpty()) Color.White else Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
-            }
 
-            if (selectedImages.isEmpty()) {
-                Text(
-                    text = "Debes seleccionar al menos una imagen",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
+                // Ubicación
+                AnimatedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = "¿Dónde será?",
+                    icon = Icons.Default.LocationOn,
+                    isVisible = isFormVisible,
+                    delay = 300,
+                    primaryColor = accentSecondary,
+                    surfaceColor = surfaceLight
                 )
-            }
 
-            // Sección de WhatsApp con Card para destacarla
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Sección de imágenes
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    colors = CardDefaults.cardColors(containerColor = surfaceDark),
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    // Título de la sección de WhatsApp
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(20.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.bxl_whatsapp),
-                            contentDescription = "WhatsApp",
-                            modifier = Modifier.size(24.dp),
-                            tint = Color(0xFF25D366) // Color oficial de WhatsApp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Contacto por WhatsApp",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Estado de carga del número
-                    if (isLoadingNumero) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cargando número de contacto...")
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                tint = primaryColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Imágenes del evento",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "${selectedImages.size}/5",
+                                color = primaryColor,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                    } else {
-                        // Número de teléfono
-                        Text(
-                            text = "Tu número: $phoneNumber",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
 
-                        // Checkbox para habilitar WhatsApp
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Checkbox(
-                                checked = enableWhatsapp,
-                                onCheckedChange = { enableWhatsapp = it }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (enableWhatsapp)
-                                    "Los usuarios podrán contactarte por WhatsApp"
-                                else
-                                    "Permitir que los usuarios te contacten por WhatsApp",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                            items(selectedImages) { uri ->
+                                ImageCard(
+                                    uri = uri,
+                                    onRemove = { selectedImages.remove(uri) }
+                                )
+                            }
 
-                        // Mensaje informativo
-                        if (phoneNumber == "No registrado" || phoneNumber == "Error al cargar") {
-                            Text(
-                                text = "Para habilitar el contacto por WhatsApp, actualiza tu número en tu perfil",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón de publicar
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        if (validateForm(title, description, location, selectedDate, selectedImages, snackbarHostState)) {
-                            isLoading = true
-                            try {
-                                val currentUser = auth.currentUser
-                                if (currentUser != null) {
-                                    val planId = UUID.randomUUID().toString()
-                                    val imageUrls = uploadImagesToFirebase(context, selectedImages, currentUser.uid, planId)
-
-                                    val plan = Plan(
-                                        id = planId,
-                                        userId = currentUser.uid,
-                                        createdAt = System.currentTimeMillis(),
-                                        title = title,
-                                        description = description,
-                                        date = selectedDate ?: 0L,
-                                        timeString = selectedTime,
-                                        location = location,
-                                        imageUrls = imageUrls,
-                                        enableWhatsapp = enableWhatsapp,
-                                        phoneNumber = if (enableWhatsapp) phoneNumber else ""
+                            if (selectedImages.size < 5) {
+                                item {
+                                    AddImageCard(
+                                        onClick = { galleryLauncher.launch("image/*") }
                                     )
-
-                                    savePlanToFirestore(db, plan)
-                                    snackbarHostState.showSnackbar("¡Plan publicado con éxito!")
-                                    navigateToHome()
                                 }
-                            } catch (e: Exception) {
-                                snackbarHostState.showSnackbar("Error: ${e.message}")
-                            } finally {
-                                isLoading = false
                             }
                         }
+
+                        if (selectedImages.isEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Agrega al menos una imagen para mostrar tu evento",
+                                color = accentSecondary,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
-                        description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8A2BE2))
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Publicar Plan")
                 }
+
+                // Sección de WhatsApp
+                WhatsAppSection(
+                    enableWhatsapp = enableWhatsapp,
+                    onWhatsAppToggle = { enableWhatsapp = it },
+                    phoneNumber = phoneNumber,
+                    isLoadingNumero = isLoadingNumero,
+                    surfaceColor = surfaceDark
+                )
+
+                // Botón de publicar
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            if (validateForm(title, description, location, selectedDate, selectedImages, snackbarHostState)) {
+                                isLoading = true
+                                try {
+                                    // Lógica de publicación aquí
+                                    val currentUser = auth.currentUser
+                                    if (currentUser != null) {
+                                        val planId = UUID.randomUUID().toString()
+                                        val imageUrls = uploadImagesToFirebase(context, selectedImages, currentUser.uid, planId)
+
+                                        val plan = Plan(
+                                            id = planId,
+                                            userId = currentUser.uid,
+                                            createdAt = System.currentTimeMillis(),
+                                            title = title,
+                                            description = description,
+                                            date = selectedDate ?: 0L,
+                                            timeString = selectedTime,
+                                            location = location,
+                                            imageUrls = imageUrls,
+                                            enableWhatsapp = enableWhatsapp,
+                                            phoneNumber = if (enableWhatsapp) phoneNumber else ""
+                                        )
+
+                                        savePlanToFirestore(db, plan)
+                                        snackbarHostState.showSnackbar("¡Evento publicado con éxito!")
+                                        navigateToHome()
+                                    }
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("Error: ${e.message}")
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
+                            description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Brush.horizontalGradient(
+                            colors = listOf(primaryColor, accentColor)
+                        ).let { primaryColor }, // Fallback para el gradient
+                        disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Send,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Publicar Evento",
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Espacio final
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -570,24 +612,43 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { dateMillis ->
-                        selectedDate = dateMillis
-                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                        formattedDate = sdf.format(Date(dateMillis))
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { dateMillis ->
+                            selectedDate = dateMillis
+                            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                            formattedDate = sdf.format(Date(dateMillis))
+                        }
+                        showDatePicker = false
                     }
-                    showDatePicker = false
-                }) {
-                    Text("Confirmar")
+                ) {
+                    Text("Confirmar", color = primaryColor)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = Color.Gray)
                 }
-            }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = surfaceDark
+            )
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = surfaceDark,
+                    titleContentColor = Color.White,
+                    headlineContentColor = Color.White,
+                    weekdayContentColor = Color.White,
+                    subheadContentColor = Color.White,
+                    dayContentColor = Color.White,
+                    selectedDayContentColor = Color.White,
+                    selectedDayContainerColor = primaryColor,
+                    todayContentColor = primaryColor,
+                    todayDateBorderColor = primaryColor
+                )
+            )
         }
     }
 
@@ -595,21 +656,42 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     if (showTimePicker) {
         Dialog(onDismissRequest = { showTimePicker = false }) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface
+                shape = RoundedCornerShape(20.dp),
+                color = surfaceDark,
+                modifier = Modifier.padding(16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "Seleccionar hora",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    TimePicker(state = timePickerState)
+                    TimePicker(
+                        state = timePickerState,
+                        colors = TimePickerDefaults.colors(
+                            containerColor = surfaceLight,
+                            clockDialColor = surfaceLight,
+                            clockDialSelectedContentColor = Color.White,
+                            clockDialUnselectedContentColor = Color.White.copy(alpha = 0.7f),
+                            selectorColor = primaryColor,
+                            periodSelectorBorderColor = primaryColor,
+                            periodSelectorSelectedContainerColor = primaryColor,
+                            periodSelectorUnselectedContainerColor = Color.Transparent,
+                            periodSelectorSelectedContentColor = Color.White,
+                            periodSelectorUnselectedContentColor = Color.White,
+                            timeSelectorSelectedContainerColor = primaryColor,
+                            timeSelectorUnselectedContainerColor = surfaceLight,
+                            timeSelectorSelectedContentColor = Color.White,
+                            timeSelectorUnselectedContentColor = Color.White
+                        )
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -617,19 +699,25 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { showTimePicker = false }) {
-                            Text("Cancelar")
+                        TextButton(
+                            onClick = { showTimePicker = false }
+                        ) {
+                            Text("Cancelar", color = Color.Gray)
                         }
 
-                        TextButton(onClick = {
-                            val hour = timePickerState.hour
-                            val minute = timePickerState.minute
-                            val formattedHour = hour.toString().padStart(2, '0')
-                            val formattedMinute = minute.toString().padStart(2, '0')
-                            selectedTime = "$formattedHour:$formattedMinute"
-                            showTimePicker = false
-                        }) {
-                            Text("Confirmar")
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        TextButton(
+                            onClick = {
+                                val hour = timePickerState.hour
+                                val minute = timePickerState.minute
+                                val formattedHour = hour.toString().padStart(2, '0')
+                                val formattedMinute = minute.toString().padStart(2, '0')
+                                selectedTime = "$formattedHour:$formattedMinute"
+                                showTimePicker = false
+                            }
+                        ) {
+                            Text("Confirmar", color = primaryColor)
                         }
                     }
                 }
@@ -641,8 +729,20 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            title = { Text("Confirmar salida") },
-            text = { Text("¿Estás seguro de que quieres salir? Se perderán los cambios no guardados.") },
+            containerColor = surfaceDark,
+            title = {
+                Text(
+                    "Confirmar salida",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "¿Estás seguro de que quieres salir? Se perderán los cambios no guardados.",
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -650,20 +750,230 @@ fun publicacion_screen(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome
                         navigateToHome()
                     }
                 ) {
-                    Text("Salir")
+                    Text("Salir", color = accentSecondary)
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showExitDialog = false }
                 ) {
-                    Text("Cancelar")
+                    Text("Cancelar", color = Color.Gray)
                 }
             }
         )
     }
 }
 
+@Composable
+fun AnimatedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isVisible: Boolean,
+    delay: Long,
+    primaryColor: Color,
+    surfaceColor: Color,
+    multiline: Boolean = false,
+    maxLines: Int = 1
+) {
+    var isFieldVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            delay(delay)
+            isFieldVisible = true
+        }
+    }
+
+    AnimatedVisibility(
+        visible = isFieldVisible,
+        enter = slideInVertically(
+            initialOffsetY = { 50 },
+            animationSpec = tween(300)
+        ) + fadeIn()
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(label, color = Color.Gray) },
+                leadingIcon = {
+                    Icon(icon, contentDescription = null, tint = primaryColor)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .let { if (multiline) it.heightIn(min = 120.dp) else it },
+                singleLine = !multiline,
+                maxLines = maxLines,
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = primaryColor,
+                    focusedIndicatorColor = primaryColor,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun ImageCard(
+    uri: Uri,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(100.dp)
+            .clip(RoundedCornerShape(16.dp))
+    ) {
+        AsyncImage(
+            model = uri,
+            contentDescription = "Imagen del evento",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(32.dp)
+                .background(
+                    Color.Black.copy(alpha = 0.7f),
+                    CircleShape
+                )
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Eliminar",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun AddImageCard(
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .size(100.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Agregar imagen",
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun WhatsAppSection(
+    enableWhatsapp: Boolean,
+    onWhatsAppToggle: (Boolean) -> Unit,
+    phoneNumber: String,
+    isLoadingNumero: Boolean,
+    surfaceColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = surfaceColor),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.bxl_whatsapp),
+                    contentDescription = "WhatsApp",
+                    modifier = Modifier.size(28.dp),
+                    tint = Color(0xFF25D366)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Contacto por WhatsApp",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoadingNumero) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color(0xFF25D366)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Cargando número...",
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            } else {
+                Text(
+                    text = "Tu número: $phoneNumber",
+                    color = Color.White.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Switch(
+                        checked = enableWhatsapp,
+                        onCheckedChange = onWhatsAppToggle,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF25D366),
+                            checkedTrackColor = Color(0xFF25D366).copy(alpha = 0.3f)
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (enableWhatsapp)
+                            "Los usuarios pueden contactarte por WhatsApp"
+                        else
+                            "Permitir contacto por WhatsApp",
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
 // Función para comprobar si el formulario tiene algún contenido
 private fun formHasContent(
     title: String,
