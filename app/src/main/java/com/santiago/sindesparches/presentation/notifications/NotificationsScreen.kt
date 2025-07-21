@@ -330,6 +330,15 @@ fun NotificationItem(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
+                notification.planTitle?.let {
+                    Text(
+                        text = it,
+                        fontWeight = if (!notification.read) FontWeight.Bold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
 
                 notification.timestamp?.let { timestamp ->
