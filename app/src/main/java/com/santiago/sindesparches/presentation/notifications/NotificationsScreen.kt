@@ -53,75 +53,73 @@ fun NotificationsScreen(
     val currentUserId = auth.currentUser?.uid
 
     // Listener en tiempo real para las notificaciones
-    LaunchedEffect(currentUserId) {
+    DisposableEffect(currentUserId) {
         if (currentUserId != null) {
-            try {
-                isLoading = true
-                Log.d("NotificationsScreen", "Setting up real-time listener for user: $currentUserId")
+            isLoading = true
+            Log.d("NotificationsScreen", "Setting up real-time listener for user: $currentUserId")
 
-                val listenerRegistration = db.collection("notifications")
-                    .whereEqualTo("recipientId", currentUserId)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            Log.e("NotificationsScreen", "Error listening to notifications", error)
-                            isLoading = false
-                            return@addSnapshotListener
+            val listenerRegistration = db.collection("notifications")
+                .whereEqualTo("recipientId", currentUserId)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("NotificationsScreen", "Error listening to notifications", error)
+                        isLoading = false
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+                        Log.d("NotificationsScreen", "Real-time update: ${snapshot.documents.size} notifications")
+
+                        val notificationsList = snapshot.documents.mapNotNull { doc ->
+                            try {
+                                val notification = doc.toObject<Notification>()?.copy(id = doc.id)
+                                Log.d("NotificationsScreen", "Notification: $notification")
+                                notification
+                            } catch (e: Exception) {
+                                Log.e("NotificationsScreen", "Error parsing notification from doc ${doc.id}", e)
+                                null
+                            }
                         }
 
-                        if (snapshot != null) {
-                            Log.d("NotificationsScreen", "Real-time update: ${snapshot.documents.size} notifications")
-
-                            val notificationsList = snapshot.documents.mapNotNull { doc ->
-                                try {
-                                    val notification = doc.toObject<Notification>()?.copy(id = doc.id)
-                                    Log.d("NotificationsScreen", "Notification: $notification")
-                                    notification
-                                } catch (e: Exception) {
-                                    Log.e("NotificationsScreen", "Error parsing notification from doc ${doc.id}", e)
-                                    null
+                        // Fetch sender profile images asíncrono
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val notificationsWithImages = notificationsList.map { notification ->
+                                    Log.d("NotificationsScreen", "Fetching profile for sender: ${notification.senderId}")
+                                    val senderDoc = db.collection("perfil").document(notification.senderId).get().await()
+                                    val profileImageUrl = senderDoc.getString("profileImageUrl")
+                                    val senderName = senderDoc.getString("nombre") ?: notification.senderName
+                                    Log.d("NotificationsScreen", "Profile image url: $profileImageUrl")
+                                    notification.copy(
+                                        senderProfileImageUrl = profileImageUrl,
+                                        senderName = senderName
+                                    )
                                 }
-                            }
 
-                            // Fetch sender profile images asíncrono
-                            CoroutineScope(Dispatchers.IO).launch {
-                                try {
-                                    val notificationsWithImages = notificationsList.map { notification ->
-                                        Log.d("NotificationsScreen", "Fetching profile for sender: ${notification.senderId}")
-                                        val senderDoc = db.collection("perfil").document(notification.senderId).get().await()
-                                        val profileImageUrl = senderDoc.getString("profileImageUrl")
-                                        val senderName = senderDoc.getString("nombre") ?: notification.senderName
-                                        Log.d("NotificationsScreen", "Profile image url: $profileImageUrl")
-                                        notification.copy(
-                                            senderProfileImageUrl = profileImageUrl,
-                                            senderName = senderName
-                                        )
-                                    }
-
-                                    // Actualizar en el hilo principal
-                                    withContext(Dispatchers.Main) {
-                                        notifications = notificationsWithImages
-                                        isLoading = false
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("NotificationsScreen", "Error fetching profile images", e)
-                                    withContext(Dispatchers.Main) {
-                                        notifications = notificationsList
-                                        isLoading = false
-                                    }
+                                // Actualizar en el hilo principal
+                                withContext(Dispatchers.Main) {
+                                    notifications = notificationsWithImages
+                                    isLoading = false
+                                }
+                            } catch (e: Exception) {
+                                Log.e("NotificationsScreen", "Error fetching profile images", e)
+                                withContext(Dispatchers.Main) {
+                                    notifications = notificationsList
+                                    isLoading = false
                                 }
                             }
                         }
                     }
+                }
 
-                // Cleanup del listener cuando el componente se destruya
-                // (En una implementación real, deberías guardarlo en un DisposableEffect)
-            } catch (e: Exception) {
-                Log.e("NotificationsScreen", "Error setting up notifications listener", e)
-                isLoading = false
+            onDispose {
+                Log.d("NotificationsScreen", "Removing listener registration")
+                listenerRegistration.remove()
             }
         } else {
             isLoading = false
+            onDispose { }
         }
     }
 
