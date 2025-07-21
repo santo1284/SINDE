@@ -55,32 +55,15 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                Log.d("TOKEN FCM", "Token: $token")
-            } else {
-                Log.e("TOKEN FCM", "Error al obtener el token", task.exception)
-            }
-        }
-        setTheme(R.style.splash_screen)
         super.onCreate(savedInstanceState)
 
-        // Inicializar Facebook y Firebase
-        FacebookSdk.sdkInitialize(applicationContext)
-        FirebaseApp.initializeApp(this)
-        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
-            PlayIntegrityAppCheckProviderFactory.getInstance()
-        )
-        analytics = Firebase.analytics
-        auth = Firebase.auth
-        db = Firebase.firestore
-
-        // CONFIGURAR NOTIFICACIONES
+        // Inicialización de Firebase y otros servicios
+        setupFirebase()
         setupNotifications()
-
-        // GUARDAR TOKEN FCM SI EL USUARIO YA ESTÁ AUTENTICADO
         checkAuthAndSaveToken()
+
+        // Manejar el intent de notificación si la app se abre desde una
+        handleNotificationIntent(intent)
 
         enableEdgeToEdge()
         setContent {
@@ -212,5 +195,37 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun setupFirebase() {
+        FirebaseApp.initializeApp(this)
+        analytics = Firebase.analytics
+        auth = Firebase.auth
+        db = Firebase.firestore
+
+        FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+            PlayIntegrityAppCheckProviderFactory.getInstance()
+        )
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                Log.d("TOKEN FCM", "Token: ${task.result}")
+            } else {
+                Log.e("TOKEN FCM", "Error al obtener el token", task.exception)
+            }
+        }
+    }
+
+    private fun handleNotificationIntent(intent: android.content.Intent?) {
+        if (intent?.action == "OPEN_PLAN_DETAIL") {
+            val planId = intent.getStringExtra("planId")
+            if (!planId.isNullOrEmpty()) {
+                // Navegar a la pantalla de detalles del plan
+                navControlller.navigate("plan_detail/$planId")
+                // Limpiar el intent para que no se vuelva a procesar
+                setIntent(android.content.Intent())
+            }
+        }
     }
 }

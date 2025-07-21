@@ -37,17 +37,23 @@ import androidx.compose.ui.platform.LocalContext
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
-
-fun Navegacion(navController: NavHostController,
-               auth: FirebaseAuth,
-                db: FirebaseFirestore,
-                intent: Intent) {
+fun Navegacion(
+    navController: NavHostController,
+    auth: FirebaseAuth,
+    db: FirebaseFirestore,
+    intent: Intent
+) {
+    fun handleNotificationIntent(intent: Intent) {
+        if (intent.action == "OPEN_PLAN_DETAIL") {
+            val planId = intent.getStringExtra("planId")
+            if (!planId.isNullOrEmpty()) {
+                navController.navigate("plan_detail/$planId")
+            }
+        }
+    }
 
     LaunchedEffect(intent) {
-        val planId = intent.getStringExtra("planId")
-        if (planId != null) {
-            navController.navigate("plan_detail/$planId")
-        }
+        handleNotificationIntent(intent)
     }
 
     NavHost(navController = navController, startDestination = "inicio") {

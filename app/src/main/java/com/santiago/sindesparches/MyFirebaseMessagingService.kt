@@ -87,6 +87,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Crear intent para abrir la actividad específica
         val intent = Intent(this, MainActivity::class.java).apply {
+            action = "OPEN_PLAN_DETAIL" // Acción para identificar el intent
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("planId", planId)
             putExtra("senderId", senderId)
