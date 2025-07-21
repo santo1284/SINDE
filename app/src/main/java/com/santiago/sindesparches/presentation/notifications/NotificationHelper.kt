@@ -79,28 +79,40 @@ class NotificationHelper {
                 Log.w(TAG, "No FCM token found for recipient: $recipientId")
             }
 
-            // Crear la notificación en Firestore
-            val notificationData = hashMapOf(
-                "recipientId" to recipientId,
-                "senderId" to senderId,
-                "senderName" to senderName,
-                "type" to type,
-                "planId" to planId,
-                "planTitle" to planTitle,
-                "message" to message,
-                "timestamp" to FieldValue.serverTimestamp(),
-                "read" to false,
-                "fcmToken" to fcmToken
-            )
+            // Verificar si ya existe una notificación similar
+            val existingNotification = db.collection("notifications")
+                .whereEqualTo("planId", planId)
+                .whereEqualTo("senderId", senderId)
+                .whereEqualTo("type", type)
+                .get()
+                .await()
 
-            db.collection("notifications")
-                .add(notificationData)
-                .addOnSuccessListener {
-                    Log.d(TAG, "Notificación guardada en Firestore para $recipientId")
-                }
-                .addOnFailureListener { e ->
-                    Log.e(TAG, "Error al guardar notificación", e)
-                }
+            if (existingNotification.isEmpty) {
+                // Crear la notificación en Firestore
+                val notificationData = hashMapOf(
+                    "recipientId" to recipientId,
+                    "senderId" to senderId,
+                    "senderName" to senderName,
+                    "type" to type,
+                    "planId" to planId,
+                    "planTitle" to planTitle,
+                    "message" to message,
+                    "timestamp" to FieldValue.serverTimestamp(),
+                    "read" to false,
+                    "fcmToken" to fcmToken
+                )
+
+                db.collection("notifications")
+                    .add(notificationData)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "Notificación guardada en Firestore para $recipientId")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Error al guardar notificación", e)
+                    }
+            } else {
+                Log.d(TAG, "Notificación duplicada, no se envió.")
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al procesar notificación", e)
