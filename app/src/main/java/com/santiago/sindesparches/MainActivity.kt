@@ -118,8 +118,6 @@ class MainActivity : ComponentActivity() {
         // 3. Obtener token FCM
         getFCMToken()
 
-        // 4. Manejar intent si viene de notificación
-        handleNotificationIntent()
     }
 
     private fun requestNotificationPermission() {
@@ -191,16 +189,6 @@ class MainActivity : ComponentActivity() {
         Log.d(TAG, "Token to send to server: $token")
     }
 
-    private fun handleNotificationIntent() {
-        intent?.extras?.let { extras ->
-            val planId = extras.getString("planId")
-            val senderId = extras.getString("senderId")
-
-            if (planId != null || senderId != null) {
-                Log.d(TAG, "App opened from notification - planId: $planId, senderId: $senderId")
-            }
-        }
-    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -224,14 +212,5 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-
-        intent.extras?.let { extras ->
-            val planId = extras.getString("planId")
-            val senderId = extras.getString("senderId")
-
-            if (planId != null || senderId != null) {
-                Log.d(TAG, "New intent from notification - planId: $planId, senderId: $senderId")
-            }
-        }
     }
 }
