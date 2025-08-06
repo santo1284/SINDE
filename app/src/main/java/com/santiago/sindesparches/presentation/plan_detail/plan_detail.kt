@@ -18,6 +18,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -548,22 +550,51 @@ fun PlanDetailScreen(
                                                 }
                                         )
                                     } else {
-                                        LazyRow(
+                                        // Para múltiples imágenes, usar HorizontalPager para que cada imagen ocupe todo el contenedor
+                                        val pagerState = rememberPagerState(pageCount = { plan!!.imageUrls.size })
+
+                                        HorizontalPager(
+                                            state = pagerState,
                                             modifier = Modifier.fillMaxSize()
-                                        ) {
-                                            items(plan!!.imageUrls) { imageUrl ->
-                                                AsyncImage(
-                                                    model = imageUrl,
-                                                    contentDescription = "Imagen del plan",
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier
-                                                        .fillParentMaxHeight()
-                                                        .width(350.dp)
-                                                        .graphicsLayer {
-                                                            translationY = parallaxOffset
-                                                        }
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
+                                        ) { page ->
+                                            AsyncImage(
+                                                model = plan!!.imageUrls[page],
+                                                contentDescription = "Imagen del plan ${page + 1}",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .graphicsLayer {
+                                                        translationY = parallaxOffset
+                                                    }
+                                            )
+                                        }
+
+                                        // Indicadores de página (puntos)
+                                        if (plan!!.imageUrls.size > 1) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(16.dp)
+                                                    .background(
+                                                        color = Color.Black.copy(alpha = 0.5f),
+                                                        shape = RoundedCornerShape(20.dp)
+                                                    )
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                repeat(plan!!.imageUrls.size) { iteration ->
+                                                    val color = if (pagerState.currentPage == iteration) {
+                                                        vibrantPink
+                                                    } else {
+                                                        Color.White.copy(alpha = 0.5f)
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .padding(2.dp)
+                                                            .size(8.dp)
+                                                            .background(color, CircleShape)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -584,7 +615,6 @@ fun PlanDetailScreen(
                                 }
                             }
                         }
-
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Información detallada del plan

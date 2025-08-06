@@ -17,12 +17,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -79,6 +82,14 @@ fun UserProfileScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Colores del tema oscuro
+    val backgroundColor = Color(0xFF0A0A0A)
+    val surfaceColor = Color(0xFF1A1A1A)
+    val primaryColor = Color(0xFF6C63FF)
+    val accentColor = Color(0xFF00D4AA)
+    val textPrimary = Color(0xFFFFFFFF)
+    val textSecondary = Color(0xFFB0B0B0)
+
     // Cargar información del usuario y sus planes
     LaunchedEffect(userId) {
         coroutineScope.launch {
@@ -88,15 +99,12 @@ fun UserProfileScreen(
 
                 Log.d("UserProfileScreen", "Iniciando carga de datos para userId: $userId")
 
-                // Cargar perfil del usuario
                 userProfile = getUserProfileById(db, userId)
                 Log.d("UserProfileScreen", "Perfil cargado: ${userProfile?.nombre}")
 
-                // Cargar imagen de perfil
                 profileImageUrl = getUserProfileImageUrl(FirebaseStorage.getInstance(), userId)
                 Log.d("UserProfileScreen", "Imagen de perfil: $profileImageUrl")
 
-                // Cargar planes del usuario
                 userPlans = getUserPlans(db, userId)
                 Log.d("UserProfileScreen", "Planes cargados: ${userPlans.size}")
 
@@ -112,18 +120,36 @@ fun UserProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil de Usuario", color = MaterialTheme.colorScheme.onSurface) },
+                title = {
+                    Text(
+                        "Perfil de Usuario",
+                        color = textPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = MaterialTheme.colorScheme.onSurface)
+                    IconButton(
+                        onClick = navigateBack,
+                        modifier = Modifier
+                            .background(
+                                primaryColor.copy(alpha = 0.1f),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = primaryColor
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                    containerColor = backgroundColor
+                ),
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = backgroundColor
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -132,114 +158,77 @@ fun UserProfileScreen(
         ) {
             when {
                 isLoading -> {
-                    CircularProgressIndicator(
+                    LoadingIndicator(
                         modifier = Modifier.align(Alignment.Center),
-                        color = Color.White
+                        primaryColor = primaryColor
                     )
                 }
                 errorMessage != null -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = errorMessage ?: "Error desconocido",
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        errorMessage = null
-                                        isLoading = true
-                                        userProfile = getUserProfileById(db, userId)
-                                        profileImageUrl = getUserProfileImageUrl(FirebaseStorage.getInstance(), userId)
-                                        userPlans = getUserPlans(db, userId)
-                                        isLoading = false
-                                    } catch (e: Exception) {
-                                        Log.e("UserProfileScreen", "Error al reintentar: ${e.message}", e)
-                                        errorMessage = "Error al cargar el perfil: ${e.message}"
-                                        isLoading = false
-                                    }
+                    ErrorScreen(
+                        errorMessage = errorMessage,
+                        primaryColor = primaryColor,
+                        textPrimary = textPrimary,
+                        onRetry = {
+                            coroutineScope.launch {
+                                try {
+                                    errorMessage = null
+                                    isLoading = true
+                                    userProfile = getUserProfileById(db, userId)
+                                    profileImageUrl = getUserProfileImageUrl(FirebaseStorage.getInstance(), userId)
+                                    userPlans = getUserPlans(db, userId)
+                                    isLoading = false
+                                } catch (e: Exception) {
+                                    Log.e("UserProfileScreen", "Error al reintentar: ${e.message}", e)
+                                    errorMessage = "Error al cargar el perfil: ${e.message}"
+                                    isLoading = false
                                 }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-                        ) {
-                            Text("Reintentar", color = Color.Black)
+                            }
                         }
-                    }
+                    )
                 }
                 userProfile == null -> {
-                    Text(
-                        text = "No se encontró el perfil del usuario",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp),
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyLarge
+                    NotFoundScreen(
+                        textPrimary = textPrimary,
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        // Información del perfil
+                        // Header del perfil con diseño mejorado
                         item {
-                            ProfileHeader(
+                            ModernProfileHeader(
                                 userProfile = userProfile!!,
                                 profileImageUrl = profileImageUrl,
-                                planCount = userPlans.size
+                                planCount = userPlans.size,
+                                primaryColor = primaryColor,
+                                accentColor = accentColor,
+                                surfaceColor = surfaceColor,
+                                textPrimary = textPrimary,
+                                textSecondary = textSecondary
                             )
                         }
 
-                        // Título de publicaciones
+                        // Sección de publicaciones
                         item {
-                            Text(
-                                text = "Publicaciones (${userPlans.size})",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                            PublicationsHeader(
+                                planCount = userPlans.size,
+                                textPrimary = textPrimary,
+                                accentColor = accentColor
                             )
                         }
 
-                        // Lista de planes del usuario
+                        // Lista de planes o estado vacío
                         if (userPlans.isEmpty()) {
                             item {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = Color.White.copy(alpha = 0.1f)
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(24.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Info,
-                                            contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(48.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "Este usuario no ha publicado ningún evento aún",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = Color.White,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
+                                EmptyStateCard(
+                                    surfaceColor = surfaceColor,
+                                    textPrimary = textPrimary,
+                                    textSecondary = textSecondary
+                                )
                             }
                         } else {
                             items(userPlans) { plan ->
@@ -279,561 +268,409 @@ fun UserProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(
+private fun ModernProfileHeader(
     userProfile: UserProfile,
     profileImageUrl: String?,
-    planCount: Int
+    planCount: Int,
+    primaryColor: Color,
+    accentColor: Color,
+    surfaceColor: Color,
+    textPrimary: Color,
+    textSecondary: Color
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+            containerColor = surfaceColor
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Imagen de perfil
-            AsyncImage(
-                model = profileImageUrl ?: R.drawable.bxs_user,
-                contentDescription = "Foto de perfil",
+        Box {
+            // Fondo con gradiente sutil
+            Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                contentScale = ContentScale.Crop,
-                error = painterResource(id = R.drawable.bxs_user)
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                primaryColor.copy(alpha = 0.1f),
+                                accentColor.copy(alpha = 0.1f)
+                            )
+                        )
+                    )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Nombre del usuario
-            Text(
-                text = userProfile.nombre.takeIf { it.isNotBlank() } ?: "Usuario",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Ciudad del usuario
-            userProfile.ciudad?.takeIf { it.isNotBlank() }?.let { ciudad ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = ciudad,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Email del usuario
-            userProfile.email?.takeIf { it.isNotBlank() }?.let { email ->
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Estadísticas
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                StatisticItem(
-                    value = planCount.toString(),
-                    label = "Eventos"
-                )
-                userProfile.edad?.let { edad ->
-                    StatisticItem(
-                        value = edad.toString(),
-                        label = "Años"
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // Imagen de perfil con anillo de gradiente
+                Box(
+                    modifier = Modifier.size(140.dp)
+                ) {
+                    // Anillo de gradiente
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.sweepGradient(
+                                    colors = listOf(
+                                        primaryColor,
+                                        accentColor,
+                                        primaryColor
+                                    )
+                                ),
+                                CircleShape
+                            )
+                    )
+
+                    // Imagen de perfil
+                    AsyncImage(
+                        model = profileImageUrl ?: R.drawable.bxs_user,
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier
+                            .size(132.dp)
+                            .align(Alignment.Center)
+                            .clip(CircleShape)
+                            .background(surfaceColor),
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(id = R.drawable.bxs_user)
                     )
                 }
-            }
-        }
-    }
-}
 
-@Composable
-private fun StatisticItem(
-    value: String,
-    label: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
+                Spacer(modifier = Modifier.height(20.dp))
 
-
-// Función para compartir evento
-private fun shareEvent(planId: String, planTitle: String) {
-    // Implementa aquí la lógica de compartir
-    // Por ejemplo, crear un Intent para compartir
-    Log.d("shareEvent", "Compartiendo evento: $planTitle")
-
-}
-
-@Composable
-fun SocialInteractionsSection(
-    plan: Plan,
-    currentUserId: String,
-    db: FirebaseFirestore,
-    onNavigateToProfile: (String) -> Unit,
-    onLikeToggle: (String) -> Unit,
-    onParticipateToggle: (String) -> Unit,
-    onShare: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit,
-    onCommentClick: (String) -> Unit
-) {
-    var showLikesDialog by remember { mutableStateOf(false) }
-    var showParticipantsDialog by remember { mutableStateOf(false) }
-
-    val isLiked = plan.likes.contains(currentUserId)
-    val isParticipating = plan.participants.contains(currentUserId)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.1f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Botón Me Gusta
-            InteractionButton(
-                icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                count = plan.likes.size,
-                label = "Me gusta",
-                isActive = isLiked,
-                activeColor = Color(0xFFE91E63), // Rosa/Rojo
-                onIconClick = {
-                    plan.id?.let { onLikeToggle(it) }
-                },
-                onCountClick = {
-                    if (plan.likes.isNotEmpty()) {
-                        showLikesDialog = true
-                    }
-                }
-            )
-
-            // Botón Participar
-            InteractionButton(
-                icon = if (isParticipating) Icons.Default.Check else Icons.Default.Add,
-                count = plan.participants.size,
-                label = "Participar",
-                isActive = isParticipating,
-                activeColor = Color(0xFF4CAF50), // Verde
-                onIconClick = {
-                    plan.id?.let { onParticipateToggle(it) }
-                },
-                onCountClick = {
-                    if (plan.participants.isNotEmpty()) {
-                        showParticipantsDialog = true
-                    }
-                }
-            )
-
-            // Botón Compartir
-            InteractionButton(
-                icon = Icons.Default.Share,
-                count = plan.shares,
-                label = "Compartir",
-                isActive = false,
-                activeColor = Color.Blue,
-                onIconClick = {
-                    plan.id?.let { onShare(it) }
-                },
-                onCountClick = { } // No hace nada al presionar el contador
-            )
-
-            // Botón de Comentarios
-            InteractionButton(
-                icon = ImageVector.vectorResource(id = R.drawable.ic_comment),
-                count = plan.commentCount,
-                label = "Comentar",
-                isActive = false,
-                activeColor = Color.Blue,
-                onIconClick = {
-                    plan.id?.let { onCommentClick(it) }
-                },
-                onCountClick = {
-                    plan.id?.let { onCommentClick(it) }
-                }
-            )
-        }
-    }
-
-    // Diálogos para mostrar usuarios
-    if (showLikesDialog) {
-        UserListDialog(
-            title = "Les gusta este evento",
-            userIds = plan.likes,
-            db = db,
-            onDismiss = { showLikesDialog = false },
-            onUserClick = { userId ->
-                showLikesDialog = false
-                if (userId == currentUserId) {
-                    navigateToMiPerfil()
-                } else {
-                    onNavigateToProfile(userId)
-                }
-            }
-        )
-    }
-
-    if (showParticipantsDialog) {
-        UserListDialog(
-            title = "Participantes del plan",
-            userIds = plan.participants,
-            db = db,
-            onDismiss = { showParticipantsDialog = false },
-            onUserClick = { userId ->
-                showParticipantsDialog = false
-                if (userId == currentUserId) {
-                    navigateToMiPerfil()
-                } else {
-                    onNavigateToProfile(userId)
-                }
-            }
-        )
-    }
-}
-
-@Composable
-fun UserListDialog(
-    title: String,
-    userIds: List<String>,
-    db: FirebaseFirestore,
-    onDismiss: () -> Unit,
-    onUserClick: (String) -> Unit
-) {
-    var users by remember { mutableStateOf<List<UserProfile>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    // Cargar información de usuarios
-    LaunchedEffect(userIds) {
-        isLoading = true
-        try {
-            val userProfiles = mutableListOf<UserProfile>()
-            userIds.forEach { userId ->
-                getUserProfileById(db, userId)?.let { profile ->
-                    userProfiles.add(profile)
-                }
-            }
-            users = userProfiles
-        } catch (e: Exception) {
-            Log.e("UserListDialog", "Error cargando usuarios: ${e.message}")
-        } finally {
-            isLoading = false
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White,
-        title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (users.isEmpty()) {
+                // Nombre del usuario
                 Text(
-                    text = "No hay usuarios para mostrar",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    text = userProfile.nombre.takeIf { it.isNotBlank() } ?: "Usuario",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textPrimary
                 )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Ciudad con icono
+                userProfile.ciudad?.takeIf { it.isNotBlank() }?.let { ciudad ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(
+                                primaryColor.copy(alpha = 0.1f),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = ciudad,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = textPrimary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Email
+                userProfile.email?.takeIf { it.isNotBlank() }?.let { email ->
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Estadísticas mejoradas
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(users) { user ->
-                        UserListItem(
-                            user = user,
-                            onClick = { onUserClick(user.id) }
+                    ModernStatisticItem(
+                        value = planCount.toString(),
+                        label = "Eventos",
+                        icon = Icons.Default.DateRange,
+                        primaryColor = primaryColor,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
+
+                    userProfile.edad?.let { edad ->
+                        ModernStatisticItem(
+                            value = edad.toString(),
+                            label = "Años",
+                            icon = Icons.Default.Person,
+                            primaryColor = accentColor,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary
                         )
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cerrar")
-            }
         }
-    )
+    }
 }
 
-
 @Composable
-private fun InteractionButton(
-    icon: ImageVector,
-    count: Int,
+private fun ModernStatisticItem(
+    value: String,
     label: String,
-    isActive: Boolean,
-    activeColor: Color,
-    onIconClick: () -> Unit,
-    onCountClick: () -> Unit
+    icon: ImageVector,
+    primaryColor: Color,
+    textPrimary: Color,
+    textSecondary: Color
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(80.dp)
-    ) {
-        // Icono clickeable
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = if (isActive) activeColor.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.1f),
-                    shape = CircleShape
-                )
-                .border(
-                    width = if (isActive) 2.dp else 1.dp,
-                    color = if (isActive) activeColor else Color.White.copy(alpha = 0.3f),
-                    shape = CircleShape
-                )
-                .clickable { onIconClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (isActive) activeColor else Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(24.dp)
+        modifier = Modifier
+            .background(
+                primaryColor.copy(alpha = 0.1f),
+                RoundedCornerShape(16.dp)
             )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Contador clickeable
-        Text(
-            text = count.toString(),
-            color = if (count > 0) Color.White else Color.White.copy(alpha = 0.6f),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (count > 0) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier
-                .clickable(
-                    enabled = count > 0,
-                    onClick = onCountClick
-                )
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(16.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = primaryColor,
+            modifier = Modifier.size(24.dp)
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Etiqueta
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = textPrimary
+        )
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.7f),
             style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center
+            color = textSecondary,
+            fontWeight = FontWeight.Medium
         )
     }
 }
-@Composable
-private fun UserListItem(
-    user: UserProfile,
-    onClick: () -> Unit
-) {
-    var profileImageUrl by remember { mutableStateOf<String?>(null) }
 
-    // Cargar imagen de perfil
-    LaunchedEffect(user.id) {
-        try {
-            profileImageUrl = getUserProfileImageUrl(FirebaseStorage.getInstance(), user.id)
-        } catch (e: Exception) {
-            Log.e("UserListItem", "Error cargando imagen: ${e.message}")
+@Composable
+private fun PublicationsHeader(
+    planCount: Int,
+    textPrimary: Color,
+    accentColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Icon(
+            Icons.Default.DateRange,
+            contentDescription = null,
+            tint = accentColor,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "Publicaciones",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = textPrimary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .background(
+                    accentColor.copy(alpha = 0.2f),
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = planCount.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = accentColor
+            )
         }
     }
+}
 
+@Composable
+private fun EmptyStateCard(
+    surfaceColor: Color,
+    textPrimary: Color,
+    textSecondary: Color
+) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.Gray.copy(alpha = 0.1f)
+            containerColor = surfaceColor
         ),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Row(
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        Color(0xFF6C63FF).copy(alpha = 0.1f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.DateRange,
+                    contentDescription = null,
+                    tint = Color(0xFF6C63FF),
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Sin eventos publicados",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Este usuario aún no ha compartido ningún evento",
+                style = MaterialTheme.typography.bodyMedium,
+                color = textSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadingIndicator(
+    modifier: Modifier = Modifier,
+    primaryColor: Color
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        CircularProgressIndicator(
+            color = primaryColor,
+            strokeWidth = 3.dp,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Cargando perfil...",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.7f)
+        )
+    }
+}
+
+@Composable
+private fun ErrorScreen(
+    errorMessage: String?,
+    primaryColor: Color,
+    textPrimary: Color,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Clear,
+            contentDescription = null,
+            tint = Color(0xFFFF6B6B),
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "¡Oops! Algo salió mal",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = errorMessage ?: "Error desconocido",
+            color = Color.White.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = primaryColor
+            ),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(48.dp)
         ) {
-            // Imagen de perfil
-            AsyncImage(
-                model = profileImageUrl ?: R.drawable.bxs_user,
-                contentDescription = "Foto de perfil",
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape),
-                contentScale = ContentScale.Crop,
-                error = painterResource(id = R.drawable.bxs_user)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Información del usuario
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = user.nombre.takeIf { it.isNotBlank() } ?: "Usuario",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black
-                )
-                user.ciudad?.takeIf { it.isNotBlank() }?.let { ciudad ->
-                    Text(
-                        text = ciudad,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            // Icono de navegación
             Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "Ver perfil",
-                tint = Color.Gray,
+                Icons.Default.Refresh,
+                contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Reintentar",
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
 
-// Funciones para manejar las interacciones
-suspend fun toggleLike(db: FirebaseFirestore, planId: String, userId: String, isLiked: Boolean) {
-    try {
-        val planRef = db.collection("planes").document(planId)
-
-        if (isLiked) {
-            // Agregar like
-            planRef.update("likes", FieldValue.arrayUnion(userId)).await()
-        } else {
-            // Quitar like
-            planRef.update("likes", FieldValue.arrayRemove(userId)).await()
-        }
-
-        Log.d("toggleLike", "Like ${if (isLiked) "agregado" else "removido"} para plan $planId")
-    } catch (e: Exception) {
-        Log.e("toggleLike", "Error al actualizar like: ${e.message}")
-        throw e
-    }
-}
-
-suspend fun toggleParticipation(db: FirebaseFirestore, planId: String, userId: String, isParticipating: Boolean) {
-    try {
-        val planRef = db.collection("planes").document(planId)
-
-        if (isParticipating) {
-            // Agregar participante
-            planRef.update("participants", FieldValue.arrayUnion(userId)).await()
-        } else {
-            // Quitar participante
-            planRef.update("participants", FieldValue.arrayRemove(userId)).await()
-        }
-
-        Log.d("toggleParticipation", "Participación ${if (isParticipating) "agregada" else "removida"} para plan $planId")
-    } catch (e: Exception) {
-        Log.e("toggleParticipation", "Error al actualizar participación: ${e.message}")
-        throw e
-    }
-}
-suspend fun incrementShareCount(db: FirebaseFirestore, planId: String) {
-    try {
-        val planRef = db.collection("planes").document(planId)
-        planRef.update("shares", FieldValue.increment(1)).await()
-
-        Log.d("incrementShareCount", "Contador de compartidos incrementado para plan $planId")
-    } catch (e: Exception) {
-        Log.e("incrementShareCount", "Error al incrementar shares: ${e.message}")
-        throw e
-    }
-}
-
-private fun shareEvent(context: Context, planId: String, planTitle: String, planDescription: String = "", planLocation: String = "", planDate: String = "") {
-    try {
-        val shareText = buildString {
-            append("¡Te invito a este evento!\n\n")
-            append("📅 $planTitle\n")
-            if (planDescription.isNotBlank()) {
-                append("📝 $planDescription\n")
-            }
-            if (planLocation.isNotBlank()) {
-                append("📍 $planLocation\n")
-            }
-            if (planDate.isNotBlank()) {
-                append("🕐 $planDate\n")
-            }
-            append("\n¡Únete y participa!")
-        }
-
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, shareText)
-            putExtra(Intent.EXTRA_SUBJECT, "Invitación a evento: $planTitle")
-        }
-
-        val chooserIntent = Intent.createChooser(shareIntent, "Compartir evento")
-        context.startActivity(chooserIntent)
-
-        Log.d("shareEvent", "Intent de compartir creado para: $planTitle")
-    } catch (e: Exception) {
-        Log.e("shareEvent", "Error al compartir evento: ${e.message}")
+@Composable
+private fun NotFoundScreen(
+    textPrimary: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.Clear,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Usuario no encontrado",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = textPrimary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "No se pudo encontrar el perfil del usuario solicitado",
+            color = Color.White.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -945,17 +782,6 @@ private suspend fun getUserPlans(db: FirebaseFirestore, userId: String): List<Pl
     } catch (e: Exception) {
         Log.e("getUserPlans", "Error obteniendo planes: ${e.message}", e)
         return@withContext emptyList()
-    }
-}
-
-private fun formatDate(dateMillis: Long): String {
-    return try {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = dateMillis
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        dateFormat.format(calendar.time)
-    } catch (e: Exception) {
-        "Fecha inválida"
     }
 }
 

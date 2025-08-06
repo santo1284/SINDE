@@ -54,6 +54,10 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -94,6 +98,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -104,6 +109,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -152,7 +159,7 @@ fun homeScreen(
     navigateToMegusta: () -> Unit = {},
     navigateToParticipar: () -> Unit = {},
     navigateToNotifications: () -> Unit = {},
-    navigateToComments: (String) -> Unit = {}
+    navigateToComments: (String) -> Unit = {},
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
@@ -162,6 +169,10 @@ fun homeScreen(
     var currentStory by remember { mutableStateOf<Story?>(null) }
     var stories by remember { mutableStateOf<List<Story>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+
+    //colors
+    val vibrantPink = Color(0xFFEC4899)
+    val electricBlue = Color(0xFF06B6D4)
 
     // Estado del botón flotante mejorado con verificación de nulos
     var isButtonVisible by remember { mutableStateOf(true) }
@@ -206,6 +217,252 @@ fun homeScreen(
     var allPlanes by remember { mutableStateOf<List<Plan>>(emptyList()) } // ✅ Lista completa sin filtrar
     var isLoadingpublicacion by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+
+    //variables cerrar secion
+
+    // Estado para controlar la visibilidad del diálogo
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+// Colores del tema oscuro para eventos
+    val nightBackground = Color(0xFF0A0E27)
+    val deepPurple = Color(0xFF6366F1)
+    val neonGreen = Color(0xFF10B981)
+    val cardBackground = Color(0xFF1A1D3A)
+    val surfaceVariant = Color(0xFF2D2F4F)
+    // Animación para el efecto glow
+    val infiniteTransition = rememberInfiniteTransition()
+    val glowAnimation by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+
+    //funcion cerrar sesion confirmacion
+    // Diálogo personalizado de confirmación
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            containerColor = cardBackground,
+            shape = RoundedCornerShape(25.dp),
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            vibrantPink.copy(alpha = 0.5f),
+                            electricBlue.copy(alpha = 0.5f),
+                            deepPurple.copy(alpha = 0.5f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(25.dp)
+                ),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Icono con efecto glow
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        vibrantPink.copy(alpha = glowAnimation * 0.4f),
+                                        Color.Transparent
+                                    ),
+                                    radius = 60f
+                                ),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null,
+                            tint = vibrantPink,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .graphicsLayer {
+                                    shadowElevation = 8.dp.toPx()
+                                }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Text(
+                        text = "¿Cerrar Sesión?",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            shadow = Shadow(
+                                color = electricBlue.copy(alpha = 0.5f),
+                                blurRadius = 8f
+                            )
+                        ),
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    // Línea decorativa
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        electricBlue.copy(alpha = 0.6f),
+                                        vibrantPink.copy(alpha = 0.6f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Estás a punto de salir de tu cuenta. ¿Estás seguro de que quieres continuar?",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            lineHeight = 24.sp
+                        ),
+                        color = Color.White.copy(alpha = 0.9f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Podrás volver a iniciar sesión cuando quieras.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                // Botón de confirmar con efecto glassmorphism
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        auth.signOut()
+                        navigateToInicial()
+                    },
+                    modifier = Modifier
+                        .height(48.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    vibrantPink.copy(alpha = 0.8f),
+                                    Color(0xFFDC2626).copy(alpha = 0.8f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.3f),
+                                    Color.White.copy(alpha = 0.1f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 8.dp,
+                        pressedElevation = 12.dp
+                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Sí, Salir",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
+            },
+            dismissButton = {
+                // Botón de cancelar con efecto neón
+                TextButton(
+                    onClick = { showLogoutDialog = false },
+                    modifier = Modifier
+                        .height(48.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.1f),
+                                    Color.White.copy(alpha = 0.05f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    neonGreen.copy(alpha = 0.6f),
+                                    electricBlue.copy(alpha = 0.4f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(24.dp)
+                        ),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = null,
+                            tint = neonGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Cancelar",
+                            color = neonGreen,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                shadow = Shadow(
+                                    color = neonGreen.copy(alpha = 0.5f),
+                                    blurRadius = 4f
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        )
+    }
 
     // ✅ Función para filtrar planes por búsqueda
     fun filterPlanes(searchQuery: String): List<Plan> {
@@ -529,15 +786,43 @@ fun homeScreen(
                             ) {
                                 FloatingActionButton(
                                     onClick = navigateToPublicaciones,
-                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    vibrantPink.copy(alpha = 0.9f),
+                                                    electricBlue.copy(alpha = 0.9f)
+                                                ),
+                                                start = Offset(0f, 0f),
+                                                end = Offset(100f, 100f)
+                                            ),
+                                            shape = CircleShape
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.5f),
+                                                    Color.White.copy(alpha = 0.1f)
+                                                )
+                                            ),
+                                            shape = CircleShape
+                                        ),
+                                    containerColor = Color.Transparent,
                                     contentColor = Color.White,
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = "Crear publicación",
-                                        modifier = Modifier.size(20.dp)
+                                    elevation = FloatingActionButtonDefaults.elevation(
+                                        defaultElevation = 12.dp,
+                                        pressedElevation = 16.dp
                                     )
+                                ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = "Crear publicación",
+                                            modifier = Modifier.size(24.dp),
+                                            tint = Color.White
+                                        )
+
                                 }
                             }
 
@@ -875,7 +1160,7 @@ fun homeScreen(
                 .zIndex(4f)
         ) {
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().padding(vertical = 25.dp)
             ) {
                 // Perfil del usuario
                 Row(
@@ -948,8 +1233,7 @@ fun homeScreen(
                     text = "Cerrar Sesión",
                     icon = Icons.AutoMirrored.Filled.ExitToApp,
                     onClick = {
-                        auth.signOut()
-                        navigateToInicial()
+                        showLogoutDialog = true
                     }
                 )
             }
@@ -996,7 +1280,7 @@ fun homeScreen(
                         }
                 }
 
-                progress.animateTo(1f, animationSpec = tween(durationMillis = 3000, easing = LinearEasing))
+                progress.animateTo(1f, animationSpec = tween(durationMillis = 30000, easing = LinearEasing))
                 showStory = false
             }
 

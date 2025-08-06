@@ -5,6 +5,7 @@ import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -101,7 +104,8 @@ fun InicialScreen(
     db: FirebaseFirestore,
     navigateToLoging: () -> Unit = {},
     navigatehome: () -> Unit = {},
-    navigatePerfil: () -> Unit = {}
+    navigatePerfil: () -> Unit = {},
+    navigateToVerificacionCorreo: (String, String) -> Unit = { _, _ -> }
 ) {
     var exitDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
@@ -111,6 +115,11 @@ fun InicialScreen(
     var forgotPasswordDialog by remember { mutableStateOf(false) }
     var resetPasswordEmail by remember { mutableStateOf("") }
     var validationMessage by remember { mutableStateOf("") }
+
+    // Nuevos estados para la validación de email
+    var emailVerificationDialog by remember { mutableStateOf(false) }
+    var unverifiedUserEmail by remember { mutableStateOf("") }
+    var unverifiedUserName by remember { mutableStateOf("") }
 
     // Configurar Manager de Facebook
     val callbackManager = remember { CallbackManager.Factory.create() }
@@ -147,10 +156,7 @@ fun InicialScreen(
     val darkBackground = Color(0xFF1A1A1A)
     val cardBackground = Color(0xFF2D2D2D)
 
-
-
     // Función para procesar el usuario después de la autenticación
-    // IMPORTANTE: Ahora es una función de nivel superior dentro del composable
     fun processUserAfterAuth(user: FirebaseUser?) {
         // Verificar si el usuario es nulo
         if (user == null) {
@@ -159,6 +165,34 @@ fun InicialScreen(
             return
         }
 
+        // NUEVA VALIDACIÓN: Verificar si el email está verificado
+        if (!user.isEmailVerified) {
+            Log.d("Authentication", "Email no verificado para usuario: ${user.email}")
+
+            // Obtener información del usuario para la pantalla de verificación
+            unverifiedUserEmail = user.email ?: ""
+
+            // Intentar obtener el nombre del usuario desde Firestore
+            val uid = user.uid
+            db.collection("usuarios").document(uid).get()
+                .addOnSuccessListener { document ->
+                    unverifiedUserName = if (document.exists()) {
+                        document.getString("nombre") ?: user.displayName ?: "Usuario"
+                    } else {
+                        user.displayName ?: "Usuario"
+                    }
+
+                    isLoading = false
+                    emailVerificationDialog = true
+                }
+                .addOnFailureListener {
+                    // Si no se puede obtener el nombre, usar valores por defecto
+                    unverifiedUserName = user.displayName ?: "Usuario"
+                    isLoading = false
+                    emailVerificationDialog = true
+                }
+            return
+        }
 
         val uid = user.uid
         val userEmail = user.email ?: ""
@@ -175,18 +209,15 @@ fun InicialScreen(
 
         // 2. Verificar si el usuario existe en la colección "usuarios" (datos básicos)
         // y en la colección "perfil" (datos completos)
-
         db.collection("perfil").document(uid).get()
             .addOnSuccessListener { perfilDocument ->
                 if (perfilDocument.exists() && perfilDocument.data?.isNotEmpty() == true) {
                     // El usuario tiene perfil completo, navegar a Home
-
                     Log.d("Navigation", "Perfil completo encontrado. Navegando a Home")
                     isLoading = false
                     navigatehome()
                 } else {
                     // El usuario no tiene perfil completo, navegar a PerfilScreen
-
                     Log.d("Navigation", "Perfil no encontrado o incompleto. Navegando a Perfil")
                     isLoading = false
                     navigatePerfil()
@@ -300,6 +331,184 @@ fun InicialScreen(
                     }
                 }
             )
+        }
+
+        // NUEVO: Diálogo para email no verificado
+        if (emailVerificationDialog) {
+            Dialog(
+                onDismissRequest = {
+                    emailVerificationDialog = false
+                    // Cerrar sesión del usuario no verificado
+                    auth.signOut()
+                }
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = cardBackground
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Icono de advertencia llamativo
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(Color.Red,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Email no verificado",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Título principal
+                        Text(
+                            text = "¡Email no verificado!",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            ),
+                            color = neonYellow,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Mensaje informativo
+                        Text(
+                            text = "Necesitas verificar tu correo electrónico antes de continuar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Email del usuario
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            primaryBlue.copy(alpha = 0.3f),
+                                            aquaBlue.copy(alpha = 0.3f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = unverifiedUserEmail,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Botón principal - Ir a verificación
+                        Button(
+                            onClick = {
+                                emailVerificationDialog = false
+                                navigateToVerificacionCorreo(unverifiedUserEmail, unverifiedUserName)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent
+                            ),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(aquaBlue, primaryBlue, vibrantPurple)
+                                        ),
+                                        shape = RoundedCornerShape(28.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Email,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Verificar Email Ahora",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Botón secundario - Cancelar
+                        OutlinedButton(
+                            onClick = {
+                                emailVerificationDialog = false
+                                auth.signOut() // Cerrar sesión del usuario no verificado
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(2.dp, Color.Gray),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent
+                            )
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Texto informativo adicional
+                        Text(
+                            text = "💡 Revisa tu bandeja de entrada y carpeta de spam",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = aquaBlue,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // Diálogo para restablecer contraseña - Diseño moderno y llamativo
@@ -542,7 +751,6 @@ fun InicialScreen(
         )
         Spacer(modifier = Modifier.width(10.dp))
 
-
         Text(
             "INICIAR SESIÓN",
             color = Color.White,
@@ -558,7 +766,7 @@ fun InicialScreen(
             modifier = Modifier
                 .height(140.dp)
                 .width(280.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             OutlinedTextField(
                 value = email,
@@ -648,33 +856,8 @@ fun InicialScreen(
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 Log.i("santi login", "Autenticación correcta")
-                                // Obtenemos el usuario actual
-                                val user = auth.currentUser
-                                if (user != null) {
-                                    // Verificar si el usuario tiene datos en Firestore
-                                    val uid = user.uid
-                                    db.collection("perfil").document(uid).get()
-                                        .addOnSuccessListener { document ->
-                                            isLoading = false
-                                            if (document.exists() && document.data?.isNotEmpty() == true) {
-                                                // El usuario tiene perfil completo, navegar a Home
-                                                Log.i("santi login", "Perfil completo encontrado. Navegando a Home")
-                                                navigatehome()
-                                            } else {
-                                                // El usuario no tiene perfil completo, navegar a PerfilScreen
-                                                Log.i("santi login", "Perfil no encontrado. Navegando a Perfil")
-                                                navigatePerfil()
-                                            }
-                                        }
-                                        .addOnFailureListener { exception ->
-                                            isLoading = false
-                                            errorMessage = "Error al verificar datos del perfil"
-                                            Log.e("santi login", "Error al verificar perfil", exception)
-                                        }
-                                } else {
-                                    isLoading = false
-                                    errorMessage = "Error al obtener usuario"
-                                }
+                                // MODIFICACIÓN: Usar la función processUserAfterAuth que ya incluye la validación de email
+                                processUserAfterAuth(auth.currentUser)
                             } else {
                                 isLoading = false
                                 errorMessage = "correo o contraseña incorrectos"
@@ -836,6 +1019,3 @@ fun InicialScreen(
         Spacer(modifier = Modifier.weight(0.8f))
     }
 }
-
-
-

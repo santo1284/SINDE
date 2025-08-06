@@ -10,7 +10,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.santiago.sindesparches.presentation.contraseña.DefinirContraseñaScreen
@@ -30,23 +29,89 @@ import com.santiago.sindesparches.presentation.publicaciones.publicacion_screen
 import com.santiago.sindesparches.presentation.registro_completo.registro_completo
 import com.santiago.sindesparches.presentation.notifications.NotificationsScreen
 import com.santiago.sindesparches.presentation.comments.CommentsScreen
-import androidx.compose.runtime.remember
 import android.content.Intent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.santiago.sindesparches.presentation.verificacion.VerificacionCorreoScreen
+import kotlinx.coroutines.delay
 
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
+fun Navegacion(
+    navController: NavHostController,
+    auth: FirebaseAuth,
+    db: FirebaseFirestore,
+    intent: Intent
+) {
+    var notificationData by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
 
-fun Navegacion(navController: NavHostController,
-               auth: FirebaseAuth,
-                db: FirebaseFirestore,
-                intent: Intent) {
-
+    // Detectar cambios en el intent
     LaunchedEffect(intent) {
         val planId = intent.getStringExtra("planId")
-        if (planId != null) {
-            navController.navigate("plan_detail/$planId")
+        val fromNotification = intent.getBooleanExtra("fromNotification", false)
+
+        Log.d("Navegacion", "Procesando intent - planId: $planId, fromNotification: $fromNotification")
+
+        if (fromNotification && planId != null) {
+            notificationData = Pair(planId, true)
+        }
+    }
+
+    // Manejar la navegación cuando tengamos los datos
+    LaunchedEffect(notificationData, navController) {
+        notificationData?.let { (planId, shouldNavigate) ->
+            if (shouldNavigate) {
+                val currentUser = auth.currentUser
+                if (currentUser != null) {
+                    Log.d("Navegacion", "🚀 Iniciando navegación a plan: $planId")
+
+                    // Limpiar el estado para evitar navegaciones repetidas
+                    notificationData = Pair(planId, false)
+
+                    try {
+                        // Esperar a que el NavController esté listo
+                        var attempts = 0
+                        while (navController.currentDestination == null && attempts < 10) {
+                            delay(200)
+                            attempts++
+                        }
+
+                        val currentRoute = navController.currentDestination?.route
+                        Log.d("Navegacion", "Ruta actual después de espera: $currentRoute")
+
+                        // Asegurar que estamos en una ruta base válida
+                        if (currentRoute == "inicio" || currentRoute == null) {
+                            navController.navigate("home") {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                            }
+                            delay(800) // Tiempo para completar la navegación
+                        }
+
+                        // Navegar al detalle del plan
+                        navController.navigate("plan_detail/$planId") {
+                            launchSingleTop = true
+                        }
+
+                        Log.d("Navegacion", "✅ Navegación exitosa a plan_detail/$planId")
+
+                    } catch (e: Exception) {
+                        Log.e("Navegacion", "❌ Error en navegación desde notificación", e)
+                        // Reintentar una vez
+                        delay(1000)
+                        try {
+                            navController.navigate("plan_detail/$planId")
+                        } catch (retryException: Exception) {
+                            Log.e("Navegacion", "❌ Fallo en reintento de navegación", retryException)
+                        }
+                    }
+                } else {
+                    Log.w("Navegacion", "⚠️ Usuario no autenticado para navegar")
+                }
+            }
         }
     }
 
@@ -57,8 +122,10 @@ fun Navegacion(navController: NavHostController,
                 navController.navigate("home")
             }, navigatePerfil = {
                 navController.navigate("perfil/{usuario}")
-            }, navigateToLoging = { navController.navigate("loging") })
-
+            }, navigateToLoging = { navController.navigate("loging") },
+                navigateToVerificacionCorreo = { email, usuario ->
+                    navController.navigate("verificacion/$email/$usuario")
+                })
         }
 
         composable("definir_contrasena/{email}") { backStackEntry ->
@@ -73,13 +140,43 @@ fun Navegacion(navController: NavHostController,
         }
 
         composable("loging") {
-            logingScreen(auth = auth,
+            logingScreen(
+                auth = auth,
                 navigatetoinicialScreen = { navController.navigate("inicio") },
-                navigateToEstadoRegistro = { usuario -> navController.navigate("estado_registro/$usuario") })
+                navigateToVerificacionCorreo = { correo, usuario ->
+                    navController.navigate("verificacion/$correo/$usuario")
+                }
+            )
+        }
+
+        composable(
+            route = "verificacion/{correo}/{usuario}",
+            arguments = listOf(
+                navArgument("correo") { type = NavType.StringType },
+                navArgument("usuario") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val correo = backStackEntry.arguments?.getString("correo") ?: ""
+            val usuario = backStackEntry.arguments?.getString("usuario") ?: ""
+
+            VerificacionCorreoScreen(
+                correo = correo,
+                usuario = usuario,
+                auth = auth,
+                navigateToEstadoRegistro = { usuario ->
+                    navController.navigate("estado_registro/$usuario") {
+                        popUpTo("loging") { inclusive = true }
+                    }
+                },
+                navigateToLoging = {
+                    navController.navigate("loging") {
+                        popUpTo("verificacion_correo") { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable("home") {
-
             homeScreen(auth = auth, db,
                 navigateToInicial = {
                     navController.navigate("inicio") {
@@ -108,8 +205,7 @@ fun Navegacion(navController: NavHostController,
                 },
                 navigateToMegusta = {
                     navController.navigate("megusta")
-                }
-                ,
+                },
                 navigateToParticipar = {
                     navController.navigate("participar")
                 },
@@ -142,7 +238,6 @@ fun Navegacion(navController: NavHostController,
                             inclusive = true
                         }
                     }
-
                 },
                 onLogout = {
                     navController.navigate("inicio") {
@@ -152,7 +247,6 @@ fun Navegacion(navController: NavHostController,
                     }
                 }
             )
-
         }
 
         composable("perfil/{usuario}") { backStackEntry ->
@@ -172,7 +266,6 @@ fun Navegacion(navController: NavHostController,
                         }
                     }
                 })
-
         }
 
         composable("registro_completo/{nombre}") { backStackEntry ->
@@ -220,7 +313,7 @@ fun Navegacion(navController: NavHostController,
                         popUpTo("home") { inclusive = true }
                     }
                 },
-                planId = planId // Pasamos el ID del plan para indicar que estamos en modo edición
+                planId = planId
             )
         }
 
@@ -232,6 +325,17 @@ fun Navegacion(navController: NavHostController,
             )
         ) { backStackEntry ->
             val planId = backStackEntry.arguments?.getString("planId") ?: ""
+
+            if (planId.isBlank()) {
+                Log.e("Navigation", "PlanId está vacío en plan_detail")
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
+
+            Log.d("Navigation", "Mostrando detalle del plan: $planId")
+
             PlanDetailScreen(
                 planId = planId,
                 auth = auth,
@@ -244,10 +348,10 @@ fun Navegacion(navController: NavHostController,
                 },
                 navigateToUserProfile = { userID ->
                     navController.navigate("perfilusuario/$userID")
-                },
-
+                }
             )
         }
+
         composable(
             route = "perfilusuario/{userId}",
             arguments = listOf(
@@ -256,10 +360,8 @@ fun Navegacion(navController: NavHostController,
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
 
-            // ✅ VALIDAR que userId no esté vacío
             if (userId.isBlank()) {
                 Log.e("Navigation", "UserId está vacío en perfilusuario")
-                // Opcionalmente navegar hacia atrás o mostrar error
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
                 }
@@ -296,11 +398,11 @@ fun Navegacion(navController: NavHostController,
             )
         }
 
-        composable( "mi_perfil"){
+        composable("mi_perfil") {
             MiPerfilScreen(
-                auth=auth,
-                db=db,
-                navigatehome ={navController.navigate("home")},
+                auth = auth,
+                db = db,
+                navigatehome = { navController.navigate("home") },
                 navigateToPlanDetail = { planId ->
                     navController.navigate("plan_detail/$planId")
                 },
@@ -319,22 +421,24 @@ fun Navegacion(navController: NavHostController,
                 },
                 navigateToComments = { planId ->
                     navController.navigate("comments/$planId")
+                },
+                navigateToEditPlan = { planId ->
+                    navController.navigate("editPlan/$planId")
                 }
-
             )
-
         }
 
-        composable("megusta"){
+        composable("megusta") {
             megustascreen(
-                auth=auth,
-                db=db,
-                navigatehome ={navController.navigate("home",)},
+                auth = auth,
+                db = db,
+                navigatehome = { navController.navigate("home") },
                 navigateToUserProfile = { userID ->
                     navController.navigate("perfilusuario/$userID")
                 },
                 navigateToDetail_Plan = { planId ->
-                    navController.navigate("plan_detail/$planId")},
+                    navController.navigate("plan_detail/$planId")
+                },
                 navigateToMiPerfil = {
                     navController.navigate("mi_perfil")
                 },
@@ -344,15 +448,16 @@ fun Navegacion(navController: NavHostController,
             )
         }
 
-        composable ("participar"){
-            planesParticipoScreen(auth=auth,
-                db=db,
-                navigatehome ={navController.navigate("home",)},
+        composable("participar") {
+            planesParticipoScreen(auth = auth,
+                db = db,
+                navigatehome = { navController.navigate("home") },
                 navigateToUserProfile = { userID ->
                     navController.navigate("perfilusuario/$userID")
                 },
                 navigateToDetail_Plan = { planId ->
-                    navController.navigate("plan_detail/$planId")},
+                    navController.navigate("plan_detail/$planId")
+                },
                 navigateToMiPerfil = {
                     navController.navigate("mi_perfil")
                 },
@@ -399,9 +504,5 @@ fun Navegacion(navController: NavHostController,
                 }
             )
         }
-
-
     }
 }
-
-

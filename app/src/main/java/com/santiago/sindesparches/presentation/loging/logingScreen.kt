@@ -88,7 +88,7 @@ import com.santiago.sindesparches.ui.theme.white
 fun logingScreen(
     auth: FirebaseAuth,
     navigatetoinicialScreen: () -> Unit = {},
-    navigateToEstadoRegistro: (String) -> Unit = {}
+    navigateToVerificacionCorreo: (String, String) -> Unit = { _, _ -> }
 ) {
     var usuario by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
@@ -99,18 +99,6 @@ fun logingScreen(
     val aquaBlue = Color(0xFF00E5FF)
     val neonYellow = Color(0xFFFFEB3B)
     val hotPink = Color(0xFFFF1744)
-
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loging))
-
-    val rotationAngle by animateFloatAsState(
-        targetValue = if (isLoading) 360f else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "loading_rotation"
-    )
-
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -166,7 +154,6 @@ fun logingScreen(
                 )
             }
 
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -182,7 +169,6 @@ fun logingScreen(
                     color = white,
                     modifier = Modifier.padding(18.dp)
                 )
-
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -245,7 +231,7 @@ fun logingScreen(
                 OutlinedTextField(
                     value = password_registro,
                     onValueChange = { password_registro = it },
-                    placeholder = { Text("CONTRASE\u00d1A", color = white) },
+                    placeholder = { Text("CONTRASEÑA", color = white) },
                     singleLine = true,
                     textStyle = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
                     visualTransformation = PasswordVisualTransformation(),
@@ -283,18 +269,31 @@ fun logingScreen(
                 Button(
                     onClick = {
                         if (correo.isBlank() || password_registro.isBlank() || usuario.isBlank()) {
-                            errorMessage = "Se encuentran campos vac\u00edos"
+                            errorMessage = "Se encuentran campos vacíos"
                         } else {
                             isLoading = true
                             errorMessage = null
+
+                            // Crear cuenta y enviar verificación
                             auth.createUserWithEmailAndPassword(correo, password_registro)
                                 .addOnCompleteListener { task ->
-                                    isLoading = false
                                     if (task.isSuccessful) {
-                                        navigateToEstadoRegistro(usuario)
+                                        val user = auth.currentUser
+                                        user?.sendEmailVerification()
+                                            ?.addOnCompleteListener { verificationTask ->
+                                                isLoading = false
+                                                if (verificationTask.isSuccessful) {
+                                                    // Navegar a pantalla de verificación
+                                                    navigateToVerificacionCorreo(correo, usuario)
+                                                } else {
+                                                    errorMessage = "Error al enviar correo de verificación"
+                                                    // Eliminar usuario si no se pudo enviar el correo
+                                                    user.delete()
+                                                }
+                                            }
                                     } else {
-                                        errorMessage =
-                                            task.exception?.message ?: "Usuario no admitido"
+                                        isLoading = false
+                                        errorMessage = task.exception?.message ?: "Usuario no admitido"
                                     }
                                 }
                         }
@@ -308,7 +307,7 @@ fun logingScreen(
                     if (isLoading) {
                         CircularProgressIndicator(color = white, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Creando cuenta...")
+                        Text("Creando cuenta...", color = white)
                     } else {
                         Text("CREAR CUENTA", fontWeight = FontWeight.Bold, color = white)
                     }
