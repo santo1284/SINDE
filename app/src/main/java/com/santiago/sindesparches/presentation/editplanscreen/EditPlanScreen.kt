@@ -87,7 +87,7 @@ fun PublicacionScreen(
                     dateInMillis = it.date
                     timeString = it.timeString
                     existingImageUrls = it.imageUrls
-                    enableWhatsapp = it.enableWhatsapp == true
+                    enableWhatsapp = it.enableWhatsapp
                     phoneNumber = it.phoneNumber
                 }
             } catch (e: Exception) {

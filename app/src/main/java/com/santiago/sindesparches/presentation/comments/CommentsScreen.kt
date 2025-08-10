@@ -26,6 +26,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
+import com.santiago.sindesparches.presentation.publicaciones.Plan
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
@@ -58,7 +59,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.storage.FirebaseStorage
-import com.santiago.sindesparches.data.models.Plan
 import com.santiago.sindesparches.presentation.notifications.sendNotification
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

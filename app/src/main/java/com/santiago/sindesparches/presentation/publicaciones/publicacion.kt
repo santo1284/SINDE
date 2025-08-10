@@ -132,7 +132,6 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun publicacion_screen(
@@ -311,8 +310,6 @@ fun publicacion_screen(
                     colors = CardDefaults.cardColors(containerColor = surfaceDark),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    var location by remember { mutableStateOf("") }
-
                     val progress = when {
                         title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
                                 && selectedDate != null && selectedTime.isNotBlank() && selectedImages.isNotEmpty() -> 1f
@@ -446,19 +443,12 @@ fun publicacion_screen(
                 }
 
                 // Ubicación
-                Box(modifier = Modifier.clickable { navigateToMapPicker() }) {
-                    AnimatedTextField(
-                        value = locationAddress,
-                        onValueChange = { },
-                        label = "¿Dónde será?",
-                        icon = Icons.Default.LocationOn,
-                        isVisible = isFormVisible,
-                        delay = 300,
-                        primaryColor = accentSecondary,
-                        surfaceColor = surfaceLight,
-                        readOnly = true
-                    )
-                }
+                LocationDisplay(
+                    locationAddress = locationAddress,
+                    onClick = navigateToMapPicker,
+                    accentSecondary = accentSecondary,
+                    surfaceLight = surfaceLight
+                )
 
                 // Sección de imágenes
                 Card(
@@ -780,6 +770,53 @@ fun publicacion_screen(
 }
 
 @Composable
+fun LocationDisplay(
+    locationAddress: String,
+    onClick: () -> Unit,
+    accentSecondary: Color,
+    surfaceLight: Color
+) {
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(300)
+        isVisible = true
+    }
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(
+            initialOffsetY = { 50 },
+            animationSpec = tween(300)
+        ) + fadeIn()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            colors = CardDefaults.cardColors(containerColor = surfaceLight),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Ubicación",
+                    tint = accentSecondary
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = locationAddress,
+                    color = if (locationAddress == "Seleccionar ubicación") Color.Gray else Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun AnimatedTextField(
     value: String,
     onValueChange: (String) -> Unit,
@@ -790,8 +827,7 @@ fun AnimatedTextField(
     primaryColor: Color,
     surfaceColor: Color,
     multiline: Boolean = false,
-    maxLines: Int = 1,
-    readOnly: Boolean = false
+    maxLines: Int = 1
 ) {
     var isFieldVisible by remember { mutableStateOf(false) }
 
@@ -824,7 +860,6 @@ fun AnimatedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { if (multiline) it.heightIn(min = 120.dp) else it },
-                readOnly = readOnly,
                 singleLine = !multiline,
                 maxLines = maxLines,
                 colors = TextFieldDefaults.colors(

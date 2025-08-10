@@ -50,7 +50,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.presentation.home.PlanCard
-import com.santiago.sindesparches.data.models.Plan
+import com.santiago.sindesparches.presentation.publicaciones.Plan
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -188,8 +188,8 @@ fun MiPerfilScreen(
                             },
                             enableWhatsapp = data["enableWhatsapp"] as? Boolean ?: false,
                             phoneNumber = data["phoneNumber"] as? String ?: "",
-                            likes = (data["likes"] as? List<*>)?.mapNotNull { it as? String } as List<String>,
-                            participants = (data["participants"] as? List<*>)?.mapNotNull { it as? String } as List<String>,
+                            likes = (data["likes"] as? List<*>)?.mapNotNull { it as? String },
+                            participants = (data["participants"] as? List<*>)?.mapNotNull { it as? String },
                             shares = (data["shares"] as? Long)?.toInt() ?: 0,
                             commentCount = (data["commentCount"] as? Long)?.toInt() ?: 0
                         )
