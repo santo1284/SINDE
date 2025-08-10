@@ -124,10 +124,10 @@ import androidx.compose.ui.zIndex
 import com.google.firebase.firestore.toObject
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
+import com.santiago.sindesparches.data.models.Plan
+import com.santiago.sindesparches.data.models.UserProfile
 import com.santiago.sindesparches.presentation.flash_plan.obtenerNombreUsuario
-import com.santiago.sindesparches.presentation.plan_detail.UserProfile
 import com.santiago.sindesparches.presentation.notifications.sendNotification
-import com.santiago.sindesparches.presentation.publicaciones.Plan
 import com.santiago.sindesparches.ui.theme.Purple
 import com.santiago.sindesparches.ui.theme.azul
 import com.santiago.sindesparches.ui.theme.azul_comienzo

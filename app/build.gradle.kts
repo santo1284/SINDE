@@ -65,6 +65,8 @@ dependencies {
 
     implementation(libs.play.services.auth)
     implementation(libs.animation)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     implementation(libs.firebase.analytics)
 

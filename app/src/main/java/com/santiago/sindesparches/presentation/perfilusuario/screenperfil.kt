@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import com.google.firebase.firestore.FieldValue
+import com.santiago.sindesparches.data.models.Plan
+import com.santiago.sindesparches.data.models.UserProfile
 import com.santiago.sindesparches.ui.theme.black
 import com.santiago.sindesparches.ui.theme.boton
 import java.text.SimpleDateFormat
@@ -235,22 +237,8 @@ fun UserProfileScreen(
                         } else {
                             items(userPlans) { plan ->
                                 com.santiago.sindesparches.presentation.home.PlanCard(
-                                    plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
-                                        id = plan.id ?: "",
-                                        userId = plan.userId,
-                                        title = plan.title,
-                                        description = plan.description,
-                                        date = plan.date,
-                                        timeString = plan.timeString,
-                                        location = plan.location,
-                                        imageUrls = plan.imageUrls,
-                                        likes = plan.likes,
-                                        participants = plan.participants,
-                                        shares = plan.shares,
-                                        createdAt = plan.createdAt,
-                                        commentCount = plan.commentCount
-                                    ),
-                                    onPlanClick = { navigateToPlanDetail(plan.id ?: "") },
+                                    plan = plan,
+                                    onPlanClick = { navigateToPlanDetail(plan.id) },
                                     currentUserId = currentUserId,
                                     db = db,
                                     coroutineScope = coroutineScope,
@@ -768,6 +756,8 @@ private suspend fun getUserPlans(db: FirebaseFirestore, userId: String): List<Pl
                     title = document.getString("title") ?: "",
                     description = document.getString("description") ?: "",
                     location = document.getString("location") ?: "",
+                    latitude = document.getDouble("latitude"),
+                    longitude = document.getDouble("longitude"),
                     date = document.getLong("date") ?: 0L,
                     timeString = document.getString("timeString") ?: "",
                     userId = document.getString("userId") ?: "",
@@ -914,31 +904,3 @@ private suspend fun debugFirestoreStructure(db: FirebaseFirestore, targetUserId:
 }
 
 // ✅ DATA CLASSES CORREGIDAS - USANDO LONG CONSISTENTEMENTE
-data class UserProfile(
-    val id: String = "",
-    val nombre: String = "",
-    val email: String = "",
-    val ciudad: String? = null,
-    val celular: String? = null,
-    val edad: Int? = null
-)
-
-// ✅ DATA CLASS PLAN CORREGIDA - updatedAt COMO LONG
-data class Plan(
-    val id: String? = null,
-    val title: String = "",
-    val description: String = "",
-    val location: String = "",
-    val date: Long = 0L,
-    val timeString: String = "",
-    val userId: String = "",
-    val createdAt: Long = 0L,
-    val updatedAt: Long? = null, // ✅ CAMBIADO DE Timestamp A Long
-    val imageUrls: List<String> = emptyList(),
-    val enableWhatsapp: Boolean? = false,
-    val phoneNumber: String? = null,
-    val likes: List<String> = emptyList(),
-    val participants: List<String> = emptyList(),
-    val shares: Int = 0,
-    val commentCount: Int = 0
-)
