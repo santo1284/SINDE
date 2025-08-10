@@ -703,7 +703,7 @@ fun InicialScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Enviar instrucciones",
+                                        text = "Enviar correo",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp

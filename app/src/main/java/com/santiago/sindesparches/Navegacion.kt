@@ -423,7 +423,7 @@ fun Navegacion(
                     navController.navigate("comments/$planId")
                 },
                 navigateToEditPlan = { planId ->
-                    navController.navigate("editPlan/$planId")
+                    navController.navigate("editplanscreen/$planId")
                 }
             )
         }

@@ -175,7 +175,7 @@ fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuar
                 Spacer(modifier = Modifier.weight(0.2f))
 
                 Text(
-                    text = if (nombreUsuario != null) "HOLA  \n \n $nombreUsuario" else "HOLA \n \n $usuario",
+                    text = if (nombreUsuario != null) "HOLA  \n \n$nombreUsuario" else "HOLA \n \n$usuario",
                     color = white,
                     fontSize = 35.sp,
                     fontWeight = FontWeight.Bold,
@@ -207,9 +207,9 @@ fun estado_registro(auth: FirebaseAuth, navigateToperfil: () -> Unit = {} ,usuar
                     .width(350.dp)
                     .height(56.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = boton_texto)
+                colors = ButtonDefaults.buttonColors(containerColor = azul_final)
             ) {
-                Text(text = "aceptar", color = black)
+                Text(text = "aceptar", color = white)
 
             }
             Spacer(modifier = Modifier.weight(1f))

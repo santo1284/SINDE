@@ -650,7 +650,7 @@ fun PlanDetailScreen(
 
                                 // Fecha y hora con iconos animados
                                 InfoRow(
-                                    icon = Icons.Filled.DateRange,
+                                    iconRes = R.drawable.bx_calendar,
                                     text = formatDate(plan!!.date),
                                     color = neonGreen
                                 )
@@ -658,7 +658,7 @@ fun PlanDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 InfoRow(
-                                    icon = Icons.Filled.DateRange,
+                                    iconRes = R.drawable.bx_time,
                                     text = plan!!.timeString,
                                     color = goldAccent
                                 )
@@ -875,7 +875,8 @@ fun PlanDetailScreen(
 
 @Composable
 fun InfoRow(
-    icon: ImageVector,
+    icon: ImageVector? = null,
+    iconRes: Int? = null,
     text: String,
     color: Color
 ) {
@@ -898,12 +899,24 @@ fun InfoRow(
                 .padding(8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(20.dp)
-            )
+            when {
+                icon != null -> {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                iconRes != null -> {
+                    Icon(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Text(

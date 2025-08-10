@@ -89,6 +89,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -100,6 +101,7 @@ import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -169,6 +171,7 @@ fun homeScreen(
     var currentStory by remember { mutableStateOf<Story?>(null) }
     var stories by remember { mutableStateOf<List<Story>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+
 
     //colors
     val vibrantPink = Color(0xFFEC4899)
@@ -848,6 +851,10 @@ fun homeScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
+                    fun removePlanFromList(planId: String) {
+                        planes = planes.filter { it.id != planId }
+                        allPlanes = allPlanes.filter { it.id != planId }
+                    }
 
                     // Contenido principal de publicaciones
                     Box(
@@ -964,7 +971,8 @@ fun homeScreen(
                                             navigateToUserProfile = navigateToUserProfile,
                                             navigateToEditPlan = navigateToEditPlan,
                                             navigateToMiPerfil = navigateToMiPerfil,
-                                            navigateToComments = navigateToComments
+                                            navigateToComments = navigateToComments,
+                                            onPlanDeleted = { planId -> removePlanFromList(planId) }
                                         )
                                     }
                                 }
@@ -1061,7 +1069,7 @@ fun homeScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 4.dp, horizontal = 8.dp)
                                     .size(60.dp)
                                     .clip(CircleShape)
                                     .border(
@@ -1136,8 +1144,8 @@ fun homeScreen(
                                 text = story.username.take(8),
                                 color = Color.White,
                                 fontSize = 10.sp,
-                                modifier = Modifier.padding(top = 4.dp),
-                                textAlign = TextAlign.Center
+                                modifier = Modifier.padding(top = 2.dp, start = 20.dp),
+
                             )
                         }
                     }
@@ -1431,8 +1439,13 @@ fun homeScreen(
                 }
             )
         }
+
     }
+
 }
+
+
+
 @Composable
 fun PlanCard(
     plan: Plan,
@@ -1444,10 +1457,15 @@ fun PlanCard(
     searchText: String = "",
     navigateToUserProfile: (String) -> Unit,
     navigateToEditPlan: (String) -> Unit,
-    navigateToMiPerfil: () -> Unit, // Agregar este parámetro
-    navigateToComments: (String) -> Unit
+    navigateToMiPerfil: () -> Unit,
+    navigateToComments: (String) -> Unit,
+    onPlanDeleted: (String) -> Unit = {}
 ) {
     val isOwner = plan.userId == currentUserId
+
+    // Estados para eliminar plan
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     // Estados para las interacciones
     var likes by remember { mutableIntStateOf(plan.likes?.size ?: 0) }
@@ -1479,8 +1497,6 @@ fun PlanCard(
                 Log.d("PlanCard", "Current data: null")
             }
         }
-        // Remember to remove the listener when the composable is disposed
-        // onDispose { listener.remove() } // This is not available in LaunchedEffect, handle cleanup appropriately
     }
 
     // Estados para mostrar diálogos de información
@@ -1488,7 +1504,7 @@ fun PlanCard(
     var showParticipantsDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
 
-    // Estados para usuarios con imágenes de perfil - usando la clase común
+    // Estados para usuarios con imágenes de perfil
     var likesUsers by remember { mutableStateOf<List<UserProfile>>(emptyList()) }
     var participantsUsers by remember { mutableStateOf<List<UserProfile>>(emptyList()) }
     var isLoadingLikes by remember { mutableStateOf(false) }
@@ -1498,6 +1514,84 @@ fun PlanCard(
     var imagenUsuario by remember { mutableStateOf<String?>(null) }
     var userName by remember { mutableStateOf<String?>(null) }
     var isLoadingUser by remember { mutableStateOf(true) }
+
+    // Función para eliminar el plan
+    suspend fun deletePlan() {
+        try {
+            isDeleting = true
+            Log.d("PlanCard", "Iniciando eliminación del plan: ${plan.id}")
+
+            // 1. Eliminar las imágenes del plan de Firebase Storage
+            if (plan.imageUrls.isNotEmpty()) {
+                Log.d("PlanCard", "Eliminando ${plan.imageUrls.size} imágenes...")
+                val storage = FirebaseStorage.getInstance()
+                for (imageUrl in plan.imageUrls) {
+                    try {
+                        val imageRef = storage.getReferenceFromUrl(imageUrl)
+                        imageRef.delete().await()
+                        Log.d("PlanCard", "Imagen eliminada: $imageUrl")
+                    } catch (e: Exception) {
+                        Log.w("PlanCard", "Error al eliminar imagen: $imageUrl", e)
+                    }
+                }
+            }
+
+            // 2. Eliminar comentarios
+            Log.d("PlanCard", "Eliminando comentarios del plan...")
+            val commentsQuery = db.collection("comentarios")
+                .whereEqualTo("planId", plan.id)
+                .get()
+                .await()
+
+            if (commentsQuery.documents.isNotEmpty()) {
+                Log.d("PlanCard", "Encontrados ${commentsQuery.documents.size} comentarios")
+                val batch = db.batch()
+                for (comment in commentsQuery.documents) {
+                    batch.delete(comment.reference)
+                    Log.d("PlanCard", "Programando eliminación de comentario: ${comment.id}")
+                }
+                batch.commit().await()
+                Log.d("PlanCard", "Comentarios eliminados exitosamente")
+            }
+
+            // 3. Eliminar el documento del plan
+            Log.d("PlanCard", "Eliminando documento del plan...")
+            db.collection("planes").document(plan.id).delete().await()
+            Log.d("PlanCard", "Plan eliminado exitosamente: ${plan.id}")
+
+            // ✅ 4. NUEVO: Actualizar la lista local inmediatamente
+            onPlanDeleted(plan.id)
+
+            // 5. Mostrar mensaje de éxito
+            Toast.makeText(
+                context,
+                "Plan eliminado exitosamente",
+                Toast.LENGTH_SHORT
+            ).show()
+
+        } catch (e: Exception) {
+            Log.e("PlanCard", "Error al eliminar el plan", e)
+
+            val errorMessage = when {
+                e.message?.contains("PERMISSION_DENIED") == true -> {
+                    "Error: No tienes permisos para eliminar este plan"
+                }
+                e.message?.contains("not-found") == true -> {
+                    "Error: El plan ya no existe"
+                }
+                e.message?.contains("unavailable") == true -> {
+                    "Error: Servicio temporalmente no disponible. Intenta de nuevo"
+                }
+                else -> {
+                    "Error inesperado al eliminar el plan"
+                }
+            }
+
+            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+        } finally {
+            isDeleting = false
+        }
+    }
 
     // Función para cargar usuarios con imágenes de perfil
     suspend fun getUserProfiles(userIds: List<String>): List<UserProfile> {
@@ -1510,14 +1604,12 @@ fun PlanCard(
                     val userDoc = db.collection("perfil").document(userId).get().await()
                     val name = userDoc.getString("nombre") ?: "Usuario"
 
-                    // Intentar cargar imagen desde Firebase Storage
                     val storageRef = storage.child("profile_pictures/$userId")
                     var profileImageUrl: String? = null
 
                     try {
                         profileImageUrl = storageRef.downloadUrl.await().toString()
                     } catch (e: Exception) {
-                        // Si no hay imagen en Storage, usar la de Firestore como respaldo
                         profileImageUrl = userDoc.getString("profileImageUrl")
                     }
 
@@ -1529,7 +1621,6 @@ fun PlanCard(
                         )
                     )
                 } catch (e: Exception) {
-                    // Si hay error con un usuario, agregarlo con valores por defecto
                     userProfiles.add(
                         UserProfile(
                             userId = userId,
@@ -1546,7 +1637,6 @@ fun PlanCard(
         }
     }
 
-
     // Cargar información del usuario que publicó
     LaunchedEffect(plan.userId) {
         try {
@@ -1561,7 +1651,6 @@ fun PlanCard(
                 val uri = storageRef.downloadUrl.await()
                 imagenUsuario = uri.toString()
             } catch (e: Exception) {
-                // Si no hay imagen en Storage, usar la de Firestore como respaldo
                 imagenUsuario = userDoc.getString("profileImageUrl")
             }
 
@@ -1620,7 +1709,6 @@ fun PlanCard(
                 .padding(vertical = 12.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen de perfil
             AsyncImage(
                 model = userProfile.profileImageUrl,
                 contentDescription = "Foto de perfil ${userProfile.nombre}",
@@ -1639,7 +1727,6 @@ fun PlanCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Nombre del usuario
             userProfile.nombre?.let {
                 Text(
                     text = it,
@@ -1649,7 +1736,6 @@ fun PlanCard(
                 )
             }
 
-            // Icono de flecha para indicar que es clickeable
             Icon(
                 Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = "Ver perfil",
@@ -1770,14 +1856,30 @@ fun PlanCard(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Eliminar", color = Color.Red) },
+                                text = {
+                                    if (isDeleting) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Eliminando...", color = Color.Red)
+                                        }
+                                    } else {
+                                        Text("Eliminar", color = Color.Red)
+                                    }
+                                },
                                 onClick = {
                                     showOptionsMenu = false
-                                    // TODO: Implementar eliminación
+                                    showDeleteDialog = true
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
-                                }
+                                    if (!isDeleting) {
+                                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                                    }
+                                },
+                                enabled = !isDeleting
                             )
                         }
                     }
@@ -1869,7 +1971,7 @@ fun PlanCard(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Icon(
-                        Icons.Default.Check,
+                        painter = painterResource(id = R.drawable.bx_time),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -1914,7 +2016,7 @@ fun PlanCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botones de interacción mejorados
+                // Botones de interacción
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -2073,10 +2175,240 @@ fun PlanCard(
         }
     }
 
-    // Diálogo mejorado para "Me gusta" con imágenes de perfil
+    // Diálogo de confirmación para eliminar (FUERA del Card, al mismo nivel)
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isDeleting) showDeleteDialog = false
+            },
+            containerColor = Color.Black,
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color.Red,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Eliminar Plan",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    // Preview del plan que se va a eliminar
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Black.copy(alpha = 0.7f)
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            // Mostrar imagen miniatura si existe
+                            if (plan.imageUrls.isNotEmpty()) {
+                                AsyncImage(
+                                    model = plan.imageUrls.first(),
+                                    contentDescription = "Vista previa",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            Text(
+                                text = plan.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = formatDate(plan.date),
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = plan.location,
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "¿Estás seguro de que quieres eliminar este plan?",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Esta acción eliminará permanentemente:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("• ", color = Color.Red)
+                            Text("El plan y toda su información", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("• ", color = Color.Red)
+                            Text("Todas las imágenes asociadas (${plan.imageUrls.size})", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("• ", color = Color.Red)
+                            Text("Todos los comentarios ($commentCount)", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("• ", color = Color.Red)
+                            Text("$likes me gusta y $participants participantes", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        "Esta acción no se puede deshacer.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    if (isDeleting) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 3.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        "Eliminando plan...",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Por favor espera",
+                                        color = Color.Gray,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            deletePlan()
+                            showDeleteDialog = false // Cerrar diálogo después de eliminar
+                        }
+                    },
+                    enabled = !isDeleting,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red,
+                        disabledContainerColor = Color.Red.copy(alpha = 0.3f)
+                    )
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Eliminar", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !isDeleting,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Diálogos de Me gusta y Participantes (mantener igual)
     if (showLikesDialog) {
         AlertDialog(
             onDismissRequest = { showLikesDialog = false },
+            containerColor = Color.Black,
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -2091,7 +2423,8 @@ fun PlanCard(
                     Text(
                         "Me gusta ($likes)",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             },
@@ -2106,9 +2439,9 @@ fun PlanCard(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = Color.White)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Cargando perfiles...")
+                            Text("Cargando perfiles...", color = Color.White)
                         }
                     }
                 } else if (likesUsers.isEmpty()) {
@@ -2133,7 +2466,6 @@ fun PlanCard(
                                 userProfile = userProfile,
                                 onClick = {
                                     showLikesDialog = false
-                                    // Verificar si es el usuario actual para redirigir correctamente
                                     if (userProfile.userId == currentUserId) {
                                         navigateToMiPerfil()
                                     } else {
@@ -2147,16 +2479,16 @@ fun PlanCard(
             },
             confirmButton = {
                 TextButton(onClick = { showLikesDialog = false }) {
-                    Text("Cerrar")
+                    Text("Cerrar", color = Color.White)
                 }
             }
         )
     }
 
-    // Diálogo mejorado para "Participantes" con imágenes de perfil
     if (showParticipantsDialog) {
         AlertDialog(
             onDismissRequest = { showParticipantsDialog = false },
+            containerColor = Color.Black,
             title = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -2171,7 +2503,8 @@ fun PlanCard(
                     Text(
                         "Participantes ($participants)",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             },
@@ -2186,9 +2519,9 @@ fun PlanCard(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = Color.White)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Cargando perfiles...")
+                            Text("Cargando perfiles...", color = Color.White)
                         }
                     }
                 } else if (participantsUsers.isEmpty()) {
@@ -2213,7 +2546,6 @@ fun PlanCard(
                                 userProfile = userProfile,
                                 onClick = {
                                     showParticipantsDialog = false
-                                    // Verificar si es el usuario actual para redirigir correctamente
                                     if (userProfile.userId == currentUserId) {
                                         navigateToMiPerfil()
                                     } else {
@@ -2227,7 +2559,7 @@ fun PlanCard(
             },
             confirmButton = {
                 TextButton(onClick = { showParticipantsDialog = false }) {
-                    Text("Cerrar")
+                    Text("Cerrar", color = Color.White)
                 }
             }
         )
@@ -2471,6 +2803,8 @@ data class Story(
     val timestamp: Long,
     val viewers: List<String> = emptyList()
 )
+
+
 
 @Composable
 fun MenuItem(

@@ -64,6 +64,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.sql.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -745,7 +749,7 @@ fun ModernCommentItem(
 
                         // Tiempo (puedes agregar esta funcionalidad)
                         Text(
-                            text = "ahora",
+                            text = formatCommentTime(comment.timestamp),
                             color = Color.Gray,
                             fontSize = 12.sp
                         )
@@ -764,5 +768,46 @@ fun ModernCommentItem(
                 }
             }
         }
+    }
+}
+
+
+// Función para formatear el tiempo transcurrido desde la creación del comentario
+fun formatCommentTime(timestamp: Any?): String {
+    return try {
+        val firebaseTimestamp = timestamp as? com.google.firebase.Timestamp
+        if (firebaseTimestamp != null) {
+            val commentTime = firebaseTimestamp.toDate()
+            val now = Date()
+            val diffInMillis = now.time - commentTime.time
+
+            when {
+                diffInMillis < TimeUnit.MINUTES.toMillis(1) -> "ahora"
+                diffInMillis < TimeUnit.HOURS.toMillis(1) -> {
+                    val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
+                    "${minutes}m"
+                }
+                diffInMillis < TimeUnit.DAYS.toMillis(1) -> {
+                    val hours = TimeUnit.MILLISECONDS.toHours(diffInMillis)
+                    "${hours}h"
+                }
+                diffInMillis < TimeUnit.DAYS.toMillis(7) -> {
+                    val days = TimeUnit.MILLISECONDS.toDays(diffInMillis)
+                    "${days}d"
+                }
+                diffInMillis < TimeUnit.DAYS.toMillis(365) -> {
+                    val formatter = SimpleDateFormat("d MMM", Locale.getDefault())
+                    formatter.format(commentTime)
+                }
+                else -> {
+                    val formatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                    formatter.format(commentTime)
+                }
+            }
+        } else {
+            "ahora"
+        }
+    } catch (e: Exception) {
+        "ahora"
     }
 }

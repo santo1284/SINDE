@@ -2,12 +2,15 @@ package com.santiago.sindesparches.presentation.mi_perfil
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,30 +23,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageException
-import android.content.Context
-import android.content.Intent
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -52,13 +44,16 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontFamily
-import com.google.firebase.Timestamp
-import com.santiago.sindesparches.R
+import androidx.compose.ui.unit.times
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.presentation.home.PlanCard
 import com.santiago.sindesparches.presentation.publicaciones.Plan
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -91,7 +86,6 @@ data class FlashPlan(
     val fechaCreacion: Any? = null
 )
 
-
 @Composable
 fun MiPerfilScreen(
     auth: FirebaseAuth,
@@ -102,7 +96,7 @@ fun MiPerfilScreen(
     navigateToProfile: (String) -> Unit,
     navigateToMiPerfil: () -> Unit,
     navigateToComments: (String) -> Unit,
-    navigateToEditPlan: (String) -> Unit // Parámetro agregado
+    navigateToEditPlan: (String) -> Unit
 ) {
     var perfilUsuario by remember { mutableStateOf<PerfilUsuario?>(null) }
     var flashPlans by remember { mutableStateOf<List<FlashPlan>>(emptyList()) }
@@ -114,6 +108,9 @@ fun MiPerfilScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoadingImage by remember { mutableStateOf(true) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Estado para el diálogo de imagen expandida
+    var expandedImageUrl by remember { mutableStateOf<String?>(null) }
 
     val currentUserId = auth.currentUser?.uid ?: ""
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -132,87 +129,15 @@ fun MiPerfilScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Animaciones
-    val profileImageScale by animateFloatAsState(
-        targetValue = if (isEditing) 1.1f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "profileImageScale"
-    )
-
-    val headerHeight by animateDpAsState(
-        targetValue = if (isEditing) 180.dp else 140.dp,
-        animationSpec = tween(300),
-        label = "headerHeight"
-    )
-
-    // Colores modernos y atractivos
-    val primaryPurple = Color(0xFF8B5CF6)
-    val primaryBlue = Color(0xFF3B82F6)
-    val accentPink = Color(0xFFEC4899)
-    val accentOrange = Color(0xFFF97316)
-    val darkBackground = Color(0xFF0F0F23)
-    val cardBackground = Color(0xFF1E1E3F)
-    val surfaceColor = Color(0xFF2D2D5A)
-
-    // Launcher para seleccionar imagen
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        imageUri = uri
-    }
-
-    // Cargar datos del perfil
-    LaunchedEffect(userId) {
+    // ✅ Función para recargar todos los datos
+    fun reloadAllData() {
         userId?.let { uid ->
-            Log.d("MiPerfil", "Cargando datos para usuario: $uid")
-
-            // Cargar perfil
-            db.collection("perfil").document(uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    Log.d("MiPerfil", "Perfil encontrado: ${document.exists()}")
-                    if (document.exists()) {
-                        perfilUsuario = document.toObject(PerfilUsuario::class.java)
-                        perfilUsuario?.let { perfil ->
-                            editNombre = perfil.nombre
-                            editCelular = perfil.celular
-                            editEdad = perfil.edad
-                            editCiudad = perfil.ciudad
-                            Log.d("MiPerfil", "Perfil cargado: ${perfil.nombre}")
-                        }
-                    }
-                    isLoading = false
-                }
-                .addOnFailureListener { e ->
-                    Log.e("MiPerfil", "Error cargando perfil", e)
-                    isLoading = false
-                }
-
-            // Cargar imagen de perfil
-            isLoadingImage = true
-            FirebaseStorage.getInstance().reference
-                .child("profile_pictures/$uid")
-                .downloadUrl
-                .addOnSuccessListener { url ->
-                    profileImageUrl = url.toString()
-                    isLoadingImage = false
-                    Log.d("MiPerfil", "Imagen de perfil encontrada: $url")
-                }
-                .addOnFailureListener { e ->
-                    isLoadingImage = false
-                    Log.d("MiPerfil", "No se encontró imagen de perfil: ${e.message}")
-                    if (e is StorageException && e.errorCode == StorageException.ERROR_NOT_AUTHORIZED) {
-                        Log.e("MiPerfil", "Error de permisos al cargar imagen de perfil")
-                    }
-                }
-
-            // Cargar FlashPlans
-            Log.d("MiPerfil", "Consultando FlashPlans para userId: $uid")
+            // Recargar FlashPlans
             db.collection("flashPlans")
                 .whereEqualTo("userId", uid)
                 .get()
                 .addOnSuccessListener { documents ->
-                    Log.d("MiPerfil", "FlashPlans encontrados: ${documents.size()}")
+                    Log.d("MiPerfil", "FlashPlans recargados: ${documents.size()}")
                     flashPlans = documents.map { doc ->
                         val flashPlan = doc.toObject(FlashPlan::class.java).copy(id = doc.id)
                         Log.d("MiPerfil", "FlashPlan: ${flashPlan.titulo}, imageUrl: ${flashPlan.imageUrl}")
@@ -220,16 +145,15 @@ fun MiPerfilScreen(
                     }
                 }
                 .addOnFailureListener { e ->
-                    Log.e("MiPerfil", "Error cargando FlashPlans", e)
+                    Log.e("MiPerfil", "Error recargando FlashPlans", e)
                 }
 
-            // Cargar Planes
-            Log.d("MiPerfil", "Consultando Planes para userId: $uid")
+            // Recargar Planes
             db.collection("planes")
                 .whereEqualTo("userId", uid)
                 .get()
                 .addOnSuccessListener { documents ->
-                    Log.d("MiPerfil", "Planes encontrados: ${documents.size()}")
+                    Log.d("MiPerfil", "Planes recargados: ${documents.size()}")
                     val planesList = documents.map { doc ->
                         val data = doc.data
 
@@ -247,7 +171,6 @@ fun MiPerfilScreen(
                                 is Long -> dateValue
                                 is String -> {
                                     try {
-                                        // Si la fecha está como string, intentar convertirla
                                         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                                             .parse(dateValue)?.time ?: System.currentTimeMillis()
                                     } catch (e: Exception) {
@@ -277,8 +200,92 @@ fun MiPerfilScreen(
                     planes = planesList.sortedByDescending { (it.createdAt ?: 0L) as Comparable<Any> }
                 }
                 .addOnFailureListener { e ->
-                    Log.e("MiPerfil", "Error cargando Planes", e)
+                    Log.e("MiPerfil", "Error recargando Planes", e)
                 }
+        }
+    }
+
+    // ✅ Función para manejar eliminación de plan con recarga automática
+    fun handlePlanDeleted(planId: String) {
+        // Actualizar la lista local inmediatamente
+        planes = planes.filter { it.id != planId }
+
+        // Mostrar mensaje de confirmación
+        Toast.makeText(
+            context,
+            "Plan eliminado exitosamente",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        // Recargar datos para asegurar consistencia
+        reloadAllData()
+    }
+
+    // Animaciones
+    val profileImageScale by animateFloatAsState(
+        targetValue = if (isEditing) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "profileImageScale"
+    )
+
+    // Colores modernos y atractivos
+    val primaryPurple = Color(0xFF8B5CF6)
+    val primaryBlue = Color(0xFF3B82F6)
+    val accentPink = Color(0xFFEC4899)
+    val accentOrange = Color(0xFFF97316)
+    val darkBackground = Color(0xFF0F0F23)
+    val cardBackground = Color(0xFF1E1E3F)
+
+    // Launcher para seleccionar imagen
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
+
+    // Cargar datos del perfil
+    LaunchedEffect(userId) {
+        userId?.let { uid ->
+            Log.d("MiPerfil", "Cargando datos para usuario: $uid")
+
+            // Cargar perfil
+            db.collection("perfil").document(uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    Log.d("MiPerfil", "Perfil encontrado: ${document.exists()}")
+                    if (document.exists()) {
+                        perfilUsuario = document.toObject(PerfilUsuario::class.java)
+                        perfilUsuario?.let { perfil ->
+                            editNombre = perfil.nombre
+                            editCelular = perfil.celular
+                            editEdad = perfil.edad
+                            editCiudad = perfil.ciudad
+                            Log.d("MiPerfil", "Perfil cargado: ${perfil.nombre}")
+                        }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("MiPerfil", "Error cargando perfil", e)
+                }
+
+            // Cargar imagen de perfil
+            isLoadingImage = true
+            FirebaseStorage.getInstance().reference
+                .child("profile_pictures/$uid")
+                .downloadUrl
+                .addOnSuccessListener { url ->
+                    profileImageUrl = url.toString()
+                    isLoadingImage = false
+                    Log.d("MiPerfil", "Imagen de perfil encontrada: $url")
+                }
+                .addOnFailureListener { e ->
+                    isLoadingImage = false
+                    Log.d("MiPerfil", "No se encontró imagen de perfil: ${e.message}")
+                }
+
+            // Cargar datos
+            reloadAllData()
+            isLoading = false
         }
     }
 
@@ -334,15 +341,14 @@ fun MiPerfilScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // Header moderno con foto de perfil integrada
+                // ✅ Header mejorado sin botón de recarga y mejor centrado
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(280.dp)
-
                     ) {
-                        // Fondo del header con gradiente y efectos
+                        // Fondo del header con gradiente
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -361,7 +367,6 @@ fun MiPerfilScreen(
                                 val canvasWidth = size.width
                                 val canvasHeight = size.height
 
-                                // Círculos decorativos
                                 drawCircle(
                                     color = Color.White.copy(alpha = 0.05f),
                                     radius = 120f,
@@ -374,25 +379,26 @@ fun MiPerfilScreen(
                                 )
                             }
 
-                            // Botones del header
+                            // ✅ Botones del header reorganizados
                             Row(
                                 modifier = Modifier
                                     .padding(16.dp)
                                     .fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Botón volver con efecto glassmorphism
+                                // Botón volver
                                 IconButton(
                                     onClick = navigatehome,
                                     modifier = Modifier
-                                        .size(50.dp)
+                                        .size(48.dp)
                                         .background(
-                                            Color.White.copy(alpha = 0.1f),
+                                            Color.White.copy(alpha = 0.15f),
                                             CircleShape
                                         )
                                         .border(
                                             1.dp,
-                                            Color.White.copy(alpha = 0.2f),
+                                            Color.White.copy(alpha = 0.3f),
                                             CircleShape
                                         )
                                 ) {
@@ -404,7 +410,7 @@ fun MiPerfilScreen(
                                     )
                                 }
 
-                                // Botones de acción con animaciones
+                                // ✅ Solo dos botones: editar y logout
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
@@ -425,16 +431,16 @@ fun MiPerfilScreen(
                                             }
                                         },
                                         modifier = Modifier
-                                            .size(50.dp)
+                                            .size(48.dp)
                                             .background(
                                                 if (isEditing) accentOrange.copy(alpha = 0.2f)
-                                                else Color.White.copy(alpha = 0.1f),
+                                                else Color.White.copy(alpha = 0.15f),
                                                 CircleShape
                                             )
                                             .border(
                                                 1.dp,
                                                 if (isEditing) accentOrange.copy(alpha = 0.4f)
-                                                else Color.White.copy(alpha = 0.2f),
+                                                else Color.White.copy(alpha = 0.3f),
                                                 CircleShape
                                             )
                                     ) {
@@ -442,21 +448,21 @@ fun MiPerfilScreen(
                                             if (isEditing) Icons.Default.Close else Icons.Default.Edit,
                                             contentDescription = if (isEditing) "Cancelar" else "Editar",
                                             tint = if (isEditing) accentOrange else Color.White,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
 
                                     IconButton(
                                         onClick = { showLogoutDialog = true },
                                         modifier = Modifier
-                                            .size(50.dp)
+                                            .size(48.dp)
                                             .background(
-                                                Color.White.copy(alpha = 0.1f),
+                                                Color.White.copy(alpha = 0.15f),
                                                 CircleShape
                                             )
                                             .border(
                                                 1.dp,
-                                                Color.White.copy(alpha = 0.2f),
+                                                Color.White.copy(alpha = 0.3f),
                                                 CircleShape
                                             )
                                     ) {
@@ -464,31 +470,28 @@ fun MiPerfilScreen(
                                             Icons.Default.ExitToApp,
                                             contentDescription = "Cerrar sesión",
                                             tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
                             }
 
-                            // Título elegante
+                            // Título del header
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .align(Alignment.BottomCenter)
                                     .padding(bottom = 20.dp)
-
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxWidth()
-
                                 ) {
                                     Text(
                                         text = "MI PERFIL",
                                         fontFamily = FontFamily.Monospace,
                                         textAlign = TextAlign.Center,
-
                                         color = Color.White,
                                         fontSize = 28.sp,
                                         fontWeight = FontWeight.Black,
@@ -535,9 +538,7 @@ fun MiPerfilScreen(
                                     .size(160.dp)
                                     .offset(y = 8.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Color.Black.copy(alpha = 0.2f)
-                                    )
+                                    .background(Color.Black.copy(alpha = 0.2f))
                                     .blur(12.dp)
                             )
 
@@ -668,7 +669,7 @@ fun MiPerfilScreen(
                                 }
                             }
 
-                            // Indicador de estado online (opcional)
+                            // Indicador de estado online
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
@@ -689,7 +690,6 @@ fun MiPerfilScreen(
                             .fillMaxWidth()
                             .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 20.dp)
                     ) {
-                        // Nombre del usuario con estilo moderno
                         perfilUsuario?.let { perfil ->
                             Text(
                                 text = perfil.nombre.ifEmpty { "Sin nombre" },
@@ -708,7 +708,6 @@ fun MiPerfilScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Subtítulo o descripción
                             Text(
                                 text = "Miembro desde ${
                                     SimpleDateFormat(
@@ -723,8 +722,8 @@ fun MiPerfilScreen(
                     }
                 }
 
+                // Card de información personal
                 item {
-                    // Card de información personal mejorada
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -760,7 +759,7 @@ fun MiPerfilScreen(
 
                             perfilUsuario?.let { perfil ->
                                 if (isEditing) {
-                                    // Modo edición mejorado
+                                    // Modo edición
                                     OutlinedTextField(
                                         value = editNombre,
                                         onValueChange = {
@@ -791,7 +790,7 @@ fun MiPerfilScreen(
                                     OutlinedTextField(
                                         value = editCelular,
                                         onValueChange = { editCelular = it },
-                                        label = { Text("Celular", color = Color.White.copy(alpha = 0.7f)) },
+                                        label = { Text("Celular") },
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedTextColor = Color.White,
@@ -886,7 +885,7 @@ fun MiPerfilScreen(
                                         }
                                     }
                                 } else {
-                                    // Modo vista mejorado
+                                    // Modo vista
                                     InfoRowModern("Nombre", perfil.nombre)
                                     InfoRowModern("Celular", perfil.celular.ifEmpty { "No especificado" })
                                     InfoRowModern("Edad", if (perfil.edad > 0) "${perfil.edad} años" else "No especificada")
@@ -964,27 +963,43 @@ fun MiPerfilScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Contenido dinámico según la tab seleccionada
+                // ✅ Contenido dinámico según la tab seleccionada
                 if (selectedTab == 0) {
-                    // FlashPlans
+                    // ✅ FlashPlans en grid de 2 columnas
                     if (flashPlans.isEmpty()) {
                         item {
                             EmptyStateCard("No has publicado FlashPlans aún", "¡Crea tu primer FlashPlan!")
                         }
                     } else {
-                        items(flashPlans) { flashPlan ->
-                            FlashPlanCardModern(flashPlan)
-                            Spacer(modifier = Modifier.height(12.dp))
+                        item {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height((flashPlans.size / 2 + flashPlans.size % 2) * 250.dp)
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                items(flashPlans) { flashPlan ->
+                                    FlashPlanGridItem(
+                                        flashPlan = flashPlan,
+                                        onImageClick = { imageUrl ->
+                                            expandedImageUrl = imageUrl
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 } else {
-                    // Tab de Planes - USANDO PlanCard del home
+                    // ✅ Tab de Planes con recarga automática
                     if (planes.isEmpty()) {
                         item {
                             EmptyStateCard("No has publicado planes aún", "¡Crea tu primer plan!")
                         }
                     } else {
-                        items(planes) { plan ->
+                        items(planes, key = { it.id }) { plan ->
                             PlanCard(
                                 plan = plan,
                                 onPlanClick = { navigateToPlanDetail(plan.id) },
@@ -992,11 +1007,15 @@ fun MiPerfilScreen(
                                 db = db,
                                 coroutineScope = coroutineScope,
                                 context = context,
-                                searchText = "", // No hay búsqueda en mi perfil
+                                searchText = "",
                                 navigateToUserProfile = navigateToProfile,
                                 navigateToEditPlan = navigateToEditPlan,
                                 navigateToMiPerfil = navigateToMiPerfil,
-                                navigateToComments = navigateToComments
+                                navigateToComments = navigateToComments,
+                                // ✅ Callback de eliminación con recarga automática
+                                onPlanDeleted = { planId ->
+                                    handlePlanDeleted(planId)
+                                }
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                         }
@@ -1005,7 +1024,59 @@ fun MiPerfilScreen(
             }
         }
 
-        // Diálogo de logout mejorado
+        // Diálogo de imagen expandida
+        expandedImageUrl?.let { imageUrl ->
+            Dialog(
+                onDismissRequest = { expandedImageUrl = null },
+                properties = DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true,
+                    usePlatformDefaultWidth = false
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.9f))
+                        .clickable { expandedImageUrl = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Imagen expandida",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentScale = ContentScale.Fit
+                    )
+
+                    // Botón de cerrar
+                    IconButton(
+                        onClick = { expandedImageUrl = null },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .size(48.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.5f),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Diálogo de logout
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
@@ -1061,6 +1132,135 @@ fun MiPerfilScreen(
     }
 }
 
+// ✅ Nuevo componente: FlashPlan para grid (solo imagen, más limpio)
+@Composable
+fun FlashPlanGridItem(
+    flashPlan: FlashPlan,
+    onImageClick: (String) -> Unit
+) {
+    val primaryPurple = Color(0xFF8B5CF6)
+    val cardBackground = Color(0xFF1E1E3F)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackground),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // ✅ Solo imagen, sin iconos
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .clickable {
+                        flashPlan.imageUrl?.let(onImageClick)
+                    },
+                shape = RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = 8.dp,
+                    bottomEnd = 8.dp
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Box {
+                    if (flashPlan.imageUrl != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(flashPlan.imageUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "FlashPlan imagen",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        // Overlay sutil para mejorar legibilidad
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.3f)
+                                        ),
+                                        startY = 80f
+                                    )
+                                )
+                        )
+                    } else {
+                        // Placeholder minimalista
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            primaryPurple.copy(alpha = 0.2f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = "FlashPlan",
+                                modifier = Modifier.size(32.dp),
+                                tint = primaryPurple.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Información del FlashPlan (compacta)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Título
+                Text(
+                    text = flashPlan.titulo,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+
+                // Fecha y hora minimalistas
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = flashPlan.fecha,
+                        fontSize = 11.sp,
+                        color = primaryPurple,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = flashPlan.hora,
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
 // Función auxiliar para el EmptyStateCard
 @Composable
 fun EmptyStateCard(title: String, subtitle: String) {
@@ -1069,7 +1269,7 @@ fun EmptyStateCard(title: String, subtitle: String) {
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E1E3F) // cardBackground
+            containerColor = Color(0xFF1E1E3F)
         ),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -1105,7 +1305,7 @@ fun EmptyStateCard(title: String, subtitle: String) {
     }
 }
 
-// Función auxiliar para InfoRowModern (si no la tienes ya definida)
+// Función auxiliar para InfoRowModern
 @Composable
 fun InfoRowModern(label: String, value: String) {
     Column(
@@ -1129,27 +1329,38 @@ fun InfoRowModern(label: String, value: String) {
     }
 }
 
-
 @Composable
 fun EdadDropdownEditable(selectedEdad: Int?, onEdadSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    val primaryPurple = Color(0xFF8B5CF6)
 
     Box {
         OutlinedTextField(
             value = selectedEdad?.toString() ?: "",
             onValueChange = { },
             readOnly = true,
-            label = { Text("Edad") },
+            label = { Text("Edad", color = Color.White.copy(alpha = 0.7f)) },
             trailingIcon = {
                 Icon(
                     Icons.Default.ArrowDropDown,
                     contentDescription = "Seleccionar edad",
-                    modifier = Modifier.clickable { expanded = true }
+                    modifier = Modifier.clickable { expanded = true },
+                    tint = Color.White.copy(alpha = 0.7f)
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = true }
+                .clickable { expanded = true },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = primaryPurple,
+                focusedBorderColor = primaryPurple,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                focusedLabelColor = primaryPurple,
+                unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+            ),
+            shape = RoundedCornerShape(12.dp)
         )
 
         DropdownMenu(
@@ -1165,109 +1376,6 @@ fun EdadDropdownEditable(selectedEdad: Int?, onEdadSelected: (Int) -> Unit) {
                         expanded = false
                     }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun FlashPlanCardModern(flashPlan: FlashPlan) {
-    val cardBackground = Color(0xFF1E1E3F)
-    val primaryPurple = Color(0xFF8B5CF6)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = cardBackground),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Column {
-            // Imagen del FlashPlan
-            flashPlan.imageUrl?.let { imageUrl ->
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Imagen del FlashPlan",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } ?: run {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(primaryPurple.copy(alpha = 0.3f), Color.Transparent)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Sin imagen",
-                        modifier = Modifier.size(60.dp),
-                        tint = Color.White.copy(alpha = 0.5f)
-                    )
-                }
-            }
-
-            // Información del FlashPlan
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = flashPlan.titulo,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Share,
-                        contentDescription = null,
-                        tint = primaryPurple,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${flashPlan.fecha} - ${flashPlan.hora}",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = primaryPurple,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = flashPlan.lugar,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
         }
     }
@@ -1338,7 +1446,7 @@ fun ModernUserItem(
     }
 }
 
-// Función para subir imagen (sin cambios)
+// Función para subir imagen
 fun uploadImageToFirebase(uri: Uri, userId: String, onSuccess: (String) -> Unit) {
     val storageRef = FirebaseStorage.getInstance().reference.child("profile_pictures/$userId")
 
@@ -1356,27 +1464,40 @@ fun uploadImageToFirebase(uri: Uri, userId: String, onSuccess: (String) -> Unit)
             Log.e("Upload", "Error al subir imagen", e)
         }
 }
+
 @Composable
 fun CiudadDropdownEditable(selectedCiudad: String, onCiudadSelected: (String) -> Unit) {
     val ciudades = listOf("Garzon", "Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena")
     var expanded by remember { mutableStateOf(false) }
+    val primaryPurple = Color(0xFF8B5CF6)
 
     Box {
         OutlinedTextField(
             value = selectedCiudad,
             onValueChange = { },
             readOnly = true,
-            label = { Text("Ciudad") },
+            label = { Text("Ciudad", color = Color.White.copy(alpha = 0.7f)) },
             trailingIcon = {
                 Icon(
                     Icons.Default.ArrowDropDown,
                     contentDescription = "Seleccionar ciudad",
-                    modifier = Modifier.clickable { expanded = true }
+                    modifier = Modifier.clickable { expanded = true },
+                    tint = Color.White.copy(alpha = 0.7f)
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { expanded = true }
+                .clickable { expanded = true },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = primaryPurple,
+                focusedBorderColor = primaryPurple,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                focusedLabelColor = primaryPurple,
+                unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+            ),
+            shape = RoundedCornerShape(12.dp)
         )
 
         DropdownMenu(

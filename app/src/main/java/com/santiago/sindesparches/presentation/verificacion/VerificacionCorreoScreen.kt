@@ -90,9 +90,10 @@ fun VerificacionCorreoScreen(
     var countdownTime by remember { mutableStateOf(60) }
     var canResend by remember { mutableStateOf(false) }
     var isVerified by remember { mutableStateOf(false) }
-    var verificationTimeout by remember { mutableStateOf(300) } // 5 minutos timeout
+    var verificationTimeout by remember { mutableStateOf(1800) } // 30 minutos timeout (más realista)
+    var userExplicitlyLeft by remember { mutableStateOf(false) } // Nuevo: controla si el usuario salió explícitamente
 
-    // Animaciones
+    // Animaciones (mantener igual)
     val infiniteTransition = rememberInfiniteTransition(label = "background_animation")
     val rotationAnimation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -124,12 +125,12 @@ fun VerificacionCorreoScreen(
         label = "floating"
     )
 
-    // Función para eliminar usuario no verificado
-    fun deleteUnverifiedUser() {
+    // Función para eliminar usuario no verificado (solo cuando sea explícito)
+    fun deleteUnverifiedUser(reason: String) {
         val currentUser = auth.currentUser
         currentUser?.delete()?.addOnCompleteListener { deleteTask ->
             if (deleteTask.isSuccessful) {
-                Log.d("VerificacionCorreo", "Usuario no verificado eliminado exitosamente")
+                Log.d("VerificacionCorreo", "Usuario eliminado por: $reason")
             } else {
                 Log.e("VerificacionCorreo", "Error al eliminar usuario: ${deleteTask.exception?.message}")
             }
@@ -138,33 +139,34 @@ fun VerificacionCorreoScreen(
         }
     }
 
-    // Detectar cuando la app va al background o se cierra
+    // CAMBIO PRINCIPAL: Solo observar cuando el usuario EXPLÍCITAMENTE decide salir
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
-                    // Usuario salió de la app sin verificar
-                    if (!isVerified) {
-                        Log.d(
-                            "VerificacionCorreo",
-                            "Usuario salió de la app sin verificar, eliminando cuenta..."
-                        )
-                        deleteUnverifiedUser()
+                    // Ya NO eliminamos la cuenta automáticamente
+                    Log.d("VerificacionCorreo", "App pausada - NO eliminando cuenta automáticamente")
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    // Cuando regrese a la app, verificar si el email fue confirmado
+                    Log.d("VerificacionCorreo", "App reanudada - verificando estado del email")
+                    val currentUser = auth.currentUser
+                    currentUser?.reload()?.addOnCompleteListener { task ->
+                        if (task.isSuccessful && currentUser.isEmailVerified && !isVerified) {
+                            isVerified = true
+                            Log.d("VerificacionCorreo", "Email verificado al regresar a la app")
+                            navigateToEstadoRegistro(usuario)
+                        }
                     }
                 }
-
                 Lifecycle.Event.ON_DESTROY -> {
-                    // Pantalla destruida sin verificar
-                    if (!isVerified) {
-                        Log.d(
-                            "VerificacionCorreo",
-                            "Pantalla destruida sin verificar, eliminando cuenta..."
-                        )
-                        deleteUnverifiedUser()
+                    // Solo eliminar si el usuario explícitamente salió
+                    if (!isVerified && userExplicitlyLeft) {
+                        Log.d("VerificacionCorreo", "Destrucción con salida explícita, eliminando cuenta")
+                        deleteUnverifiedUser("Destrucción explícita")
                     }
                 }
-
                 else -> {}
             }
         }
@@ -176,41 +178,31 @@ fun VerificacionCorreoScreen(
         }
     }
 
-    // Detectar botón de retroceso del sistema
+    // CAMBIO: BackHandler ahora pregunta antes de eliminar
     BackHandler {
-        if (!isVerified) {
-            Log.d("VerificacionCorreo", "Usuario presionó botón de retroceso sin verificar")
-            deleteUnverifiedUser()
-        }
+        dialogMessage = "⚠️ Si sales ahora sin verificar tu correo, tu cuenta será eliminada permanentemente.\n\n" +
+                "Debes verificar tu email para poder continuar. ¿Realmente quieres salir?"
+        showDialog = true
     }
 
-    // Timeout automático de verificación (5 minutos)
+    // Timeout automático AUMENTADO a 30 minutos
     LaunchedEffect(Unit) {
         while (verificationTimeout > 0 && !isVerified) {
             delay(1000)
             verificationTimeout--
         }
         if (!isVerified && verificationTimeout <= 0) {
-            Log.d("VerificacionCorreo", "Timeout de verificación alcanzado, eliminando usuario")
-            dialogMessage = "⏰ Tiempo de verificación agotado. Tu cuenta será eliminada por seguridad."
+            Log.d("VerificacionCorreo", "Timeout de verificación alcanzado (30 min)")
+            dialogMessage = "⏰ Han pasado 30 minutos sin verificación. Tu cuenta será eliminada por seguridad."
             showDialog = true
-            delay(3000) // Mostrar mensaje por 3 segundos
-            deleteUnverifiedUser()
+            delay(5000) // Más tiempo para leer el mensaje
+            deleteUnverifiedUser("Timeout de 30 minutos")
         }
     }
 
     // Countdown timer para reenvío
-    LaunchedEffect(Unit) {
-        while (countdownTime > 0 && !isVerified) {
-            delay(1000)
-            countdownTime--
-        }
-        canResend = true
-    }
-
-    // Reiniciar countdown cuando se reenvía el correo
     LaunchedEffect(countdownTime) {
-        if (countdownTime == 60 && !canResend) {
+        if (countdownTime > 0) {
             while (countdownTime > 0 && !isVerified) {
                 delay(1000)
                 countdownTime--
@@ -219,10 +211,10 @@ fun VerificacionCorreoScreen(
         }
     }
 
-    // Verificar estado del correo cada 3 segundos
+    // MEJORA: Verificar email más frecuentemente cuando la app está activa
     LaunchedEffect(Unit) {
         while (!isVerified) {
-            delay(3000)
+            delay(2000) // Verificar cada 2 segundos en lugar de 3
             val currentUser = auth.currentUser
             currentUser?.reload()?.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
@@ -238,7 +230,7 @@ fun VerificacionCorreoScreen(
         }
     }
 
-    // Colores vibrantes para modo oscuro - tema fiesta/feria
+    // Colores (mantener igual)
     val darkBackground = Color(0xFF0A0A0F)
     val primaryPurple = Color(0xFF9C27B0)
     val neonPink = Color(0xFFE91E63)
@@ -255,7 +247,7 @@ fun VerificacionCorreoScreen(
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Fondo con gradiente dinámico
+        // Fondo con gradiente dinámico (mantener igual)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -265,9 +257,8 @@ fun VerificacionCorreoScreen(
                     )
                 )
         ) {
-            // Elementos decorativos animados de fondo
+            // Elementos decorativos animados (mantener igual)
             Canvas(modifier = Modifier.fillMaxSize()) {
-                // Círculos flotantes grandes
                 drawCircle(
                     color = neonPink.copy(alpha = pulseAnimation * 0.4f),
                     radius = 120f,
@@ -289,7 +280,6 @@ fun VerificacionCorreoScreen(
                     center = Offset(size.width * 0.2f, size.height * 0.8f - floatingAnimation * 0.7f)
                 )
 
-                // Formas geométricas rotatorias
                 rotate(rotationAnimation) {
                     drawCircle(
                         color = neonYellow.copy(alpha = 0.1f),
@@ -310,7 +300,7 @@ fun VerificacionCorreoScreen(
             }
         }
 
-        // Header con icono animado
+        // Header con icono animado (mantener igual)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -330,13 +320,11 @@ fun VerificacionCorreoScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icono con animación de pulso y brillo
                 Box(
                     modifier = Modifier
                         .size(140.dp)
                         .offset(y = floatingAnimation.dp)
                 ) {
-                    // Resplandor de fondo
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawCircle(
                             brush = Brush.radialGradient(
@@ -385,7 +373,6 @@ fun VerificacionCorreoScreen(
                     .fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Título con gradiente
                 Text(
                     text = "¡VERIFICA TU CORREO!",
                     fontSize = 28.sp,
@@ -400,13 +387,13 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Indicador de tiempo restante
+                // CAMBIO: Indicador de tiempo más realista (30 minutos)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (verificationTimeout > 60) {
+                        containerColor = if (verificationTimeout > 300) {
                             acidGreen.copy(alpha = 0.2f)
                         } else {
                             hotMagenta.copy(alpha = 0.3f)
@@ -415,7 +402,7 @@ fun VerificacionCorreoScreen(
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(
                         1.dp,
-                        if (verificationTimeout > 60) acidGreen else hotMagenta
+                        if (verificationTimeout > 300) acidGreen else hotMagenta
                     )
                 ) {
                     Row(
@@ -428,7 +415,7 @@ fun VerificacionCorreoScreen(
                         Icon(
                             imageVector = Icons.Default.MailOutline,
                             contentDescription = null,
-                            tint = if (verificationTimeout > 60) acidGreen else hotMagenta,
+                            tint = if (verificationTimeout > 300) acidGreen else hotMagenta,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -444,7 +431,7 @@ fun VerificacionCorreoScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = " ¡Ya casi puedes disfrutar de los mejores eventos! ",
+                    text = "✨ ¡Ya casi puedes disfrutar de los mejores eventos! ✨",
                     fontSize = 16.sp,
                     color = Color.White.copy(alpha = 0.9f),
                     textAlign = TextAlign.Center,
@@ -462,7 +449,6 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Email con fondo colorido
                 Box(
                     modifier = Modifier
                         .background(
@@ -484,7 +470,7 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Card de instrucciones con diseño vibrante
+                // CAMBIO: Instrucciones actualizadas
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -522,11 +508,11 @@ fun VerificacionCorreoScreen(
                         Spacer(modifier = Modifier.height(16.dp))
 
                         val instructions = listOf(
-                            "📧 Revisa tu bandeja de entrada",
-                            "🔍 Si no está, busca en SPAM",
-                            "🔗 Haz clic en el enlace mágico",
-                            "✨ ¡Esta pantalla se actualizará sola!",
-                            "⚠️ Tu cuenta se eliminará si no verificas en 5 minutos"
+                            "📧 Revisa tu bandeja de entrada y SPAM",
+                            "🔗 Haz clic en el enlace de verificación",
+                            "✅ Puedes salir de la app para verificar",
+                            "🔄 Al regresar, verificaremos automáticamente",
+                            "⏰ Tienes 30 minutos para completar la verificación"
                         )
 
                         instructions.forEach { instruction ->
@@ -539,13 +525,13 @@ fun VerificacionCorreoScreen(
                                 Text(
                                     text = instruction,
                                     fontSize = 14.sp,
-                                    color = if (instruction.contains("eliminará")) {
-                                        hotMagenta.copy(alpha = 0.9f)
+                                    color = if (instruction.contains("30 minutos")) {
+                                        neonYellow.copy(alpha = 0.9f)
                                     } else {
                                         Color.White.copy(alpha = 0.9f)
                                     },
                                     lineHeight = 20.sp,
-                                    fontWeight = if (instruction.contains("eliminará")) {
+                                    fontWeight = if (instruction.contains("30 minutos")) {
                                         FontWeight.Bold
                                     } else {
                                         FontWeight.Normal
@@ -558,7 +544,6 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Indicador de carga mejorado
                 if (isLoading) {
                     Box(
                         modifier = Modifier
@@ -591,7 +576,7 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Botón para reenviar correo con diseño vibrante
+                // Botón para reenviar correo (mantener igual)
                 Button(
                     onClick = {
                         if (canResend) {
@@ -604,9 +589,11 @@ fun VerificacionCorreoScreen(
                                         countdownTime = 60
                                         canResend = false
                                         Log.d("VerificacionCorreo", "Email de verificación reenviado")
+                                        dialogMessage = "✅ ¡Correo reenviado exitosamente! Revisa tu bandeja de entrada."
+                                        showDialog = true
                                     } else {
                                         Log.e("VerificacionCorreo", "Error al reenviar email: ${task.exception?.message}")
-                                        dialogMessage = "Error al reenviar correo de verificación"
+                                        dialogMessage = "❌ Error al reenviar correo. Inténtalo nuevamente."
                                         showDialog = true
                                     }
                                 }
@@ -674,12 +661,12 @@ fun VerificacionCorreoScreen(
                                     isVerified = true
                                     navigateToEstadoRegistro(usuario)
                                 } else {
-                                    dialogMessage = "El correo aún no ha sido verificado. Por favor, revisa tu correo e intenta nuevamente."
+                                    dialogMessage = "📧 El correo aún no ha sido verificado. Por favor, verifica tu email y regresa."
                                     showDialog = true
                                 }
                             } else {
                                 Log.e("VerificacionCorreo", "Error al verificar manualmente: ${task.exception?.message}")
-                                dialogMessage = "Error al verificar el estado del correo"
+                                dialogMessage = "❌ Error al verificar. Inténtalo nuevamente."
                                 showDialog = true
                             }
                         }
@@ -708,14 +695,16 @@ fun VerificacionCorreoScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // CAMBIO: Botón de salir ahora es explícito
                 TextButton(
                     onClick = {
-                        dialogMessage = "¿Estás seguro de que quieres salir? Se eliminará tu cuenta permanentemente."
+                        userExplicitlyLeft = true
+                        dialogMessage = "⚠️ Si sales sin verificar tu correo, tu cuenta será eliminada permanentemente.\n\n¿Estás seguro de que quieres cancelar el registro?"
                         showDialog = true
                     }
                 ) {
                     Text(
-                        "🚪 Salir y Eliminar Cuenta",
+                        "🚪 Cancelar Registro",
                         color = hotMagenta.copy(alpha = 0.8f),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
@@ -725,19 +714,31 @@ fun VerificacionCorreoScreen(
         }
     }
 
-    // Diálogo mejorado
+    // CAMBIO: Diálogo mejorado con diferentes tipos de mensajes
     if (showDialog) {
         AlertDialog(
             onDismissRequest = {
-                if (!dialogMessage.contains("Tiempo de verificación agotado")) {
+                if (!dialogMessage.contains("agotado") && !dialogMessage.contains("cancelar")) {
                     showDialog = false
                 }
             },
             containerColor = Color(0xFF1A1A2E),
             title = {
+                val title = when {
+                    dialogMessage.contains("salir") || dialogMessage.contains("cancelar") -> "⚠️ Confirmar Salida"
+                    dialogMessage.contains("agotado") -> "⏰ Tiempo Agotado"
+                    dialogMessage.contains("exitosamente") -> "✅ Éxito"
+                    dialogMessage.contains("Error") -> "❌ Error"
+                    else -> "ℹ️ Información"
+                }
                 Text(
-                    if (dialogMessage.contains("salir") || dialogMessage.contains("agotado")) "⚠️ Atención Crítica" else "ℹ️ Información",
-                    color = if (dialogMessage.contains("salir") || dialogMessage.contains("agotado")) hotMagenta else neonYellow,
+                    title,
+                    color = when {
+                        dialogMessage.contains("salir") || dialogMessage.contains("cancelar") || dialogMessage.contains("agotado") -> hotMagenta
+                        dialogMessage.contains("exitosamente") -> acidGreen
+                        dialogMessage.contains("Error") -> vibrantOrange
+                        else -> neonYellow
+                    },
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -748,38 +749,44 @@ fun VerificacionCorreoScreen(
                 )
             },
             confirmButton = {
-                if (dialogMessage.contains("salir")) {
-                    Button(
-                        onClick = {
-                            Log.d("VerificacionCorreo", "Usuario confirmó salir, eliminando cuenta")
-                            showDialog = false
-                            deleteUnverifiedUser()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = hotMagenta
-                        )
-                    ) {
-                        Text("🗑️ Sí, eliminar cuenta", color = Color.White)
+                when {
+                    dialogMessage.contains("cancelar") -> {
+                        Button(
+                            onClick = {
+                                showDialog = false
+                                deleteUnverifiedUser("Usuario canceló explícitamente")
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = hotMagenta
+                            )
+                        ) {
+                            Text("🗑️ Sí, cancelar registro", color = Color.White)
+                        }
                     }
-                } else if (dialogMessage.contains("agotado")) {
-                    // No mostrar botón para timeout automático
-                } else {
-                    Button(
-                        onClick = { showDialog = false },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = electricBlue
-                        )
-                    ) {
-                        Text("Entendido", color = Color.White)
+                    dialogMessage.contains("agotado") -> {
+                        // Sin botón para timeout automático
+                    }
+                    else -> {
+                        Button(
+                            onClick = { showDialog = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = electricBlue
+                            )
+                        ) {
+                            Text("Entendido", color = Color.White)
+                        }
                     }
                 }
             },
             dismissButton = {
-                if (dialogMessage.contains("salir")) {
+                if (dialogMessage.contains("cancelar")) {
                     TextButton(
-                        onClick = { showDialog = false }
+                        onClick = {
+                            showDialog = false
+                            userExplicitlyLeft = false // Reset flag
+                        }
                     ) {
-                        Text("Cancelar", color = Color.White.copy(alpha = 0.8f))
+                        Text("Continuar verificando", color = Color.White.copy(alpha = 0.8f))
                     }
                 }
             }

@@ -53,7 +53,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.santiago.sindesparches.ui.theme.black
 import com.santiago.sindesparches.ui.theme.boton
@@ -98,6 +97,9 @@ fun UserProfileScreen(
                 errorMessage = null
 
                 Log.d("UserProfileScreen", "Iniciando carga de datos para userId: $userId")
+
+                // 🔧 LLAMADA DE DEBUG (remover después de solucionar)
+                debugFirestoreStructure(db, userId)
 
                 userProfile = getUserProfileById(db, userId)
                 Log.d("UserProfileScreen", "Perfil cargado: ${userProfile?.nombre}")
@@ -674,7 +676,7 @@ private fun NotFoundScreen(
     }
 }
 
-// ✅ FUNCIONES AUXILIARES MEJORADAS
+// ✅ FUNCIONES AUXILIARES MEJORADAS CON CONVERSIÓN MANUAL ROBUSTA
 private suspend fun getUserProfileById(db: FirebaseFirestore, userId: String): UserProfile? = withContext(Dispatchers.IO) {
     try {
         Log.d("getUserProfileById", "Buscando perfil para userId: '$userId'")
@@ -740,6 +742,7 @@ private suspend fun getUserProfileImageUrl(storage: FirebaseStorage, userId: Str
     }
 }
 
+// ✅ FUNCIÓN getUserPlans COMPLETAMENTE CORREGIDA CON CONVERSIÓN MANUAL
 private suspend fun getUserPlans(db: FirebaseFirestore, userId: String): List<Plan> = withContext(Dispatchers.IO) {
     try {
         if (userId.isBlank()) {
@@ -747,46 +750,170 @@ private suspend fun getUserPlans(db: FirebaseFirestore, userId: String): List<Pl
             return@withContext emptyList()
         }
 
-        Log.d("getUserPlans", "Buscando planes para userId: '$userId'")
+        val cleanUserId = userId.trim()
+        Log.d("getUserPlans", "🔍 Buscando planes para userId: '$cleanUserId'")
 
         val documents = db.collection("planes")
-            .whereEqualTo("userId", userId)
+            .whereEqualTo("userId", cleanUserId)
             .get()
             .await()
 
-        Log.d("getUserPlans", "Documentos encontrados: ${documents.size()}")
+        Log.d("getUserPlans", "🎯 Documentos encontrados para '$cleanUserId': ${documents.size()}")
 
+        // ✅ CONVERSIÓN MANUAL ROBUSTA - MANEJA TANTO TIMESTAMP COMO LONG
         val plans = documents.documents.mapNotNull { document ->
             try {
-                val plan = document.toObject(Plan::class.java)
-                if (plan != null) {
-                    val planWithId = plan.copy(id = document.id)
-                    Log.d("getUserPlans", "Plan cargado: '${planWithId.title}' con ID: '${planWithId.id}'")
-                    planWithId
-                } else {
-                    Log.w("getUserPlans", "No se pudo convertir documento ${document.id}")
-                    null
-                }
+                val plan = Plan(
+                    id = document.id,
+                    title = document.getString("title") ?: "",
+                    description = document.getString("description") ?: "",
+                    location = document.getString("location") ?: "",
+                    date = document.getLong("date") ?: 0L,
+                    timeString = document.getString("timeString") ?: "",
+                    userId = document.getString("userId") ?: "",
+                    createdAt = when (val created = document.get("createdAt")) {
+                        is Long -> created
+                        is com.google.firebase.Timestamp -> created.seconds * 1000
+                        else -> System.currentTimeMillis()
+                    },
+                    updatedAt = when (val updated = document.get("updatedAt")) {
+                        is Long -> updated
+                        is com.google.firebase.Timestamp -> updated.seconds * 1000
+                        null -> null
+                        else -> null
+                    },
+                    imageUrls = (document.get("imageUrls") as? List<String>) ?: emptyList(),
+                    enableWhatsapp = document.getBoolean("enableWhatsapp") ?: false,
+                    phoneNumber = document.getString("phoneNumber") ?: "",
+                    likes = (document.get("likes") as? List<String>) ?: emptyList(),
+                    participants = (document.get("participants") as? List<String>) ?: emptyList(),
+                    shares = document.getLong("shares")?.toInt() ?: 0,
+                    commentCount = document.getLong("commentCount")?.toInt() ?: 0
+                )
+
+                Log.d("getUserPlans", "✅ Plan cargado: '${plan.title}' (ID: ${plan.id})")
+                plan
+
             } catch (e: Exception) {
-                Log.w("getUserPlans", "Error convirtiendo documento ${document.id}: ${e.message}")
+                Log.w("getUserPlans", "❌ Error convirtiendo documento ${document.id}: ${e.message}")
+                // Log adicional para debug
+                Log.d("getUserPlans", "   └─ Datos del documento problemático:")
+                document.data?.forEach { (key, value) ->
+                    Log.d("getUserPlans", "       $key: $value (${value?.javaClass?.simpleName})")
+                }
                 null
             }
         }
 
-        // Ordenar por fecha de creación (más reciente primero)
         val sortedPlans = plans.sortedByDescending { it.createdAt }
+        Log.d("getUserPlans", "🎉 Total planes cargados y ordenados: ${sortedPlans.size}")
 
-        Log.d("getUserPlans", "Total planes cargados y ordenados: ${sortedPlans.size}")
         return@withContext sortedPlans
 
     } catch (e: Exception) {
-        Log.e("getUserPlans", "Error obteniendo planes: ${e.message}", e)
+        Log.e("getUserPlans", "💥 Error obteniendo planes: ${e.message}", e)
         return@withContext emptyList()
     }
 }
 
+// ✅ FUNCIÓN DEBUG MEJORADA PARA IDENTIFICAR PROBLEMAS DE TIPO
+private suspend fun debugFirestoreStructure(db: FirebaseFirestore, targetUserId: String) = withContext(Dispatchers.IO) {
+    try {
+        Log.d("DEBUG_FIRESTORE", "🔍 === INICIANDO DEBUG DE FIRESTORE ===")
+        Log.d("DEBUG_FIRESTORE", "🎯 Usuario objetivo: '$targetUserId'")
 
-// ✅ DATA CLASSES CONSISTENTES
+        val allPlanes = db.collection("planes").get().await()
+        Log.d("DEBUG_FIRESTORE", "📊 Total documentos en colección 'planes': ${allPlanes.size()}")
+
+        allPlanes.documents.forEach { doc ->
+            try {
+                val userId = doc.getString("userId")
+                val title = doc.getString("title")
+                val id = doc.id
+
+                // ✅ VERIFICAR TIPOS DE DATOS CRÍTICOS
+                val createdAt = doc.get("createdAt")
+                val updatedAt = doc.get("updatedAt")
+
+                Log.d("DEBUG_FIRESTORE", "📄 Doc ID: $id")
+                Log.d("DEBUG_FIRESTORE", "   └─ userId: '$userId'")
+                Log.d("DEBUG_FIRESTORE", "   └─ title: '$title'")
+                Log.d("DEBUG_FIRESTORE", "   └─ createdAt tipo: ${createdAt?.javaClass?.simpleName} valor: $createdAt")
+                Log.d("DEBUG_FIRESTORE", "   └─ updatedAt tipo: ${updatedAt?.javaClass?.simpleName} valor: $updatedAt")
+                Log.d("DEBUG_FIRESTORE", "   └─ coincide userId?: ${userId?.trim() == targetUserId.trim()}")
+
+                // ✅ INTENTAR CONVERSIÓN PARA DETECTAR ERRORES
+                try {
+                    val testPlan = doc.toObject(Plan::class.java)
+                    Log.d("DEBUG_FIRESTORE", "   └─ Conversión automática: ✅ EXITOSA")
+                } catch (e: Exception) {
+                    Log.e("DEBUG_FIRESTORE", "   └─ Conversión automática: ❌ ERROR - ${e.message}")
+
+                    // Intentar conversión manual para este documento problemático
+                    try {
+                        val manualPlan = Plan(
+                            id = doc.id,
+                            title = doc.getString("title") ?: "",
+                            description = doc.getString("description") ?: "",
+                            location = doc.getString("location") ?: "",
+                            date = doc.getLong("date") ?: 0L,
+                            timeString = doc.getString("timeString") ?: "",
+                            userId = doc.getString("userId") ?: "",
+                            createdAt = when (val created = doc.get("createdAt")) {
+                                is Long -> created
+                                is com.google.firebase.Timestamp -> created.seconds * 1000
+                                else -> 0L
+                            },
+                            updatedAt = when (val updated = doc.get("updatedAt")) {
+                                is Long -> updated
+                                is com.google.firebase.Timestamp -> updated.seconds * 1000
+                                else -> null
+                            },
+                            imageUrls = (doc.get("imageUrls") as? List<String>) ?: emptyList(),
+                            enableWhatsapp = doc.getBoolean("enableWhatsapp") ?: false,
+                            phoneNumber = doc.getString("phoneNumber") ?: "",
+                            likes = (doc.get("likes") as? List<String>) ?: emptyList(),
+                            participants = (doc.get("participants") as? List<String>) ?: emptyList(),
+                            shares = doc.getLong("shares")?.toInt() ?: 0,
+                            commentCount = doc.getLong("commentCount")?.toInt() ?: 0
+                        )
+                        Log.d("DEBUG_FIRESTORE", "   └─ Conversión manual: ✅ EXITOSA")
+                    } catch (e2: Exception) {
+                        Log.e("DEBUG_FIRESTORE", "   └─ Conversión manual: ❌ FALLÓ - ${e2.message}")
+                    }
+                }
+
+                Log.d("DEBUG_FIRESTORE", "   └─ campos disponibles: ${doc.data?.keys}")
+
+            } catch (e: Exception) {
+                Log.e("DEBUG_FIRESTORE", "❌ Error procesando doc ${doc.id}: ${e.message}")
+            }
+        }
+
+        // ✅ CONSULTA ESPECÍFICA DE VERIFICACIÓN
+        val specificQuery = db.collection("planes")
+            .whereEqualTo("userId", targetUserId.trim())
+            .get()
+            .await()
+
+        Log.d("DEBUG_FIRESTORE", "🎯 Consulta específica encontró: ${specificQuery.size()} documentos")
+
+        // ✅ VERIFICAR PERMISOS
+        try {
+            val testRead = db.collection("planes").limit(1).get().await()
+            Log.d("DEBUG_FIRESTORE", "✅ Permisos de lectura: OK")
+        } catch (e: Exception) {
+            Log.e("DEBUG_FIRESTORE", "❌ Problema de permisos: ${e.message}")
+        }
+
+        Log.d("DEBUG_FIRESTORE", "🏁 === FIN DEBUG DE FIRESTORE ===")
+
+    } catch (e: Exception) {
+        Log.e("DEBUG_FIRESTORE", "💥 Error en debug: ${e.message}", e)
+    }
+}
+
+// ✅ DATA CLASSES CORREGIDAS - USANDO LONG CONSISTENTEMENTE
 data class UserProfile(
     val id: String = "",
     val nombre: String = "",
@@ -796,6 +923,7 @@ data class UserProfile(
     val edad: Int? = null
 )
 
+// ✅ DATA CLASS PLAN CORREGIDA - updatedAt COMO LONG
 data class Plan(
     val id: String? = null,
     val title: String = "",
@@ -805,7 +933,7 @@ data class Plan(
     val timeString: String = "",
     val userId: String = "",
     val createdAt: Long = 0L,
-    val updatedAt: Timestamp? = null,
+    val updatedAt: Long? = null, // ✅ CAMBIADO DE Timestamp A Long
     val imageUrls: List<String> = emptyList(),
     val enableWhatsapp: Boolean? = false,
     val phoneNumber: String? = null,
@@ -814,4 +942,3 @@ data class Plan(
     val shares: Int = 0,
     val commentCount: Int = 0
 )
-

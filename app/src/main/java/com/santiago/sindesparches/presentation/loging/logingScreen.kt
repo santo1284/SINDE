@@ -167,7 +167,7 @@ fun logingScreen(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
                     color = white,
-                    modifier = Modifier.padding(18.dp)
+                    modifier = Modifier.padding(15.dp)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -175,7 +175,7 @@ fun logingScreen(
                 OutlinedTextField(
                     value = usuario,
                     onValueChange = { usuario = it },
-                    placeholder = { Text("USUARIO", color = white) },
+                    placeholder = { Text("NOMBRE DE USUARIO", color = white) },
                     singleLine = true,
                     textStyle = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
                     leadingIcon = {

@@ -135,6 +135,7 @@ data class Plan(
     val userId: String = "",
     val createdAt: Long = 0,
     val title: String = "",
+    val updatedAt: Long? = null, //para qeu aparezcan todas las publicaciones
     val description: String = "",
     val date: Long = 0,
     val timeString: String = "",
@@ -419,7 +420,7 @@ fun publicacion_screen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                Icons.Default.DateRange,
+                                painter = painterResource(id = R.drawable.bx_time),
                                 contentDescription = null,
                                 tint = accentColor,
                                 modifier = Modifier.size(24.dp)

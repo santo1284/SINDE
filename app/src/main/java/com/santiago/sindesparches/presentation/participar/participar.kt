@@ -116,6 +116,41 @@ fun planesParticipoScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // ✅ NUEVA: Función para eliminar plan de la lista local
+    fun removePlanFromList(planId: String) {
+        Log.d("PlanesParticipoScreen", "Eliminando plan de la lista local: $planId")
+        participatingPlans = participatingPlans.filter { it.id != planId }
+
+        // Mostrar mensaje de confirmación
+        Toast.makeText(
+            context,
+            "Ya no participas en este plan",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    // ✅ NUEVA: Función para quitar participación cuando se elimina un plan
+    fun removeParticipationFromPlan(planId: String) {
+        coroutineScope.launch {
+            try {
+                Log.d("PlanesParticipoScreen", "Quitando participación del plan eliminado: $planId")
+
+                // Quitar la participación del plan en Firestore
+                db.collection("planes").document(planId)
+                    .update("participants", FieldValue.arrayRemove(currentUserId))
+                    .await()
+
+                // Actualizar la lista local
+                removePlanFromList(planId)
+
+            } catch (e: Exception) {
+                Log.e("PlanesParticipoScreen", "Error al quitar participación del plan eliminado", e)
+                // Aún así, remover de la lista local para mejorar UX
+                removePlanFromList(planId)
+            }
+        }
+    }
+
     // Animaciones
     val infiniteTransition = rememberInfiniteTransition(label = "background")
     val gradientOffset by infiniteTransition.animateFloat(
@@ -353,6 +388,7 @@ fun planesParticipoScreen(
                                     ) + fadeIn(animationSpec = tween(600)),
                                     modifier = Modifier.animateItemPlacement()
                                 ) {
+                                    // ✅ MODIFICADO: Agregar callback de eliminación
                                     PlanCardWithParticipationTheme(
                                         plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
                                             id = plan.id,
@@ -366,7 +402,7 @@ fun planesParticipoScreen(
                                             likes = plan.likes,
                                             participants = plan.participants,
                                             shares = plan.shares,
-                                            createdAt = System.currentTimeMillis(),
+                                            createdAt = plan.createdAt ?: System.currentTimeMillis(),
                                             commentCount = plan.commentCount ?: 0
                                         ),
                                         onPlanClick = { navigateToDetail_Plan(plan.id) },
@@ -378,7 +414,11 @@ fun planesParticipoScreen(
                                         navigateToEditPlan = { /* Empty lambda */ },
                                         navigateToMiPerfil = navigateToMiPerfil,
                                         navigateToComments = navigateToComments,
-                                        accentColors = accentColors
+                                        accentColors = accentColors,
+                                        // ✅ NUEVO: Callback para eliminación
+                                        onPlanDeleted = { planId ->
+                                            removeParticipationFromPlan(planId)
+                                        }
                                     )
                                 }
                             }
@@ -578,7 +618,7 @@ fun ParticipationEmptySection(accentColors: List<Color>) {
     }
 }
 
-// Extensión para aplicar tema nocturno al PlanCard con enfoque en participación
+// ✅ MODIFICADO: Extensión para aplicar tema nocturno al PlanCard con callback de eliminación
 @Composable
 fun PlanCardWithParticipationTheme(
     plan: com.santiago.sindesparches.presentation.publicaciones.Plan,
@@ -591,7 +631,9 @@ fun PlanCardWithParticipationTheme(
     navigateToEditPlan: () -> Unit,
     navigateToMiPerfil: () -> Unit,
     navigateToComments: (String) -> Unit,
-    accentColors: List<Color>
+    accentColors: List<Color>,
+    // ✅ NUEVO: Agregar callback de eliminación
+    onPlanDeleted: (String) -> Unit = {}
 ) {
     // Crear un CompositionLocalProvider para personalizar los colores
     CompositionLocalProvider(
@@ -628,7 +670,7 @@ fun PlanCardWithParticipationTheme(
                     )
             )
 
-            // PlanCard original
+            // ✅ MODIFICADO: PlanCard original con callback de eliminación
             com.santiago.sindesparches.presentation.home.PlanCard(
                 plan = plan,
                 onPlanClick = onPlanClick,
@@ -639,7 +681,9 @@ fun PlanCardWithParticipationTheme(
                 navigateToUserProfile = navigateToUserProfile,
                 navigateToEditPlan = { _ -> navigateToEditPlan() },
                 navigateToMiPerfil = navigateToMiPerfil,
-                navigateToComments = navigateToComments
+                navigateToComments = navigateToComments,
+                // ✅ NUEVO: Pasar el callback de eliminación
+                onPlanDeleted = onPlanDeleted
             )
         }
     }
@@ -841,4 +885,3 @@ fun UserItem(
         )
     }
 }
-

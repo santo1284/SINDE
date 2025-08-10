@@ -94,6 +94,7 @@ data class UserProfile(
     val email: String? = null
 )
 
+// 1. Modifica tu megustascreen para incluir la función de eliminación
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun megustascreen(
@@ -113,7 +114,42 @@ fun megustascreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Animaciones
+    // ✅ NUEVA: Función para eliminar plan de la lista local
+    fun removePlanFromList(planId: String) {
+        Log.d("MeGustaScreen", "Eliminando plan de la lista local: $planId")
+        likedPlans = likedPlans.filter { it.id != planId }
+
+        // Mostrar mensaje de confirmación
+        Toast.makeText(
+            context,
+            "Plan eliminado de tus favoritos",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    // ✅ NUEVA: Función para quitar like cuando se elimina un plan
+    fun removeLikeFromPlan(planId: String) {
+        coroutineScope.launch {
+            try {
+                Log.d("MeGustaScreen", "Quitando like del plan eliminado: $planId")
+
+                // Quitar el like del plan en Firestore
+                db.collection("planes").document(planId)
+                    .update("likes", FieldValue.arrayRemove(currentUserId))
+                    .await()
+
+                // Actualizar la lista local
+                removePlanFromList(planId)
+
+            } catch (e: Exception) {
+                Log.e("MeGustaScreen", "Error al quitar like del plan eliminado", e)
+                // Aún así, remover de la lista local para mejorar UX
+                removePlanFromList(planId)
+            }
+        }
+    }
+
+    // Animaciones y colores (mantener igual)
     val infiniteTransition = rememberInfiniteTransition(label = "background")
     val gradientOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -125,25 +161,24 @@ fun megustascreen(
         label = "gradient"
     )
 
-    // Colores vibrantes para tema nocturno
     val nightColors = listOf(
-        Color(0xFF130000), // Azul marino profundo
-        Color(0xFF230101), // Azul oscuro
-        Color(0xFF460101), // Azul medianoche
-        Color(0xFF230101), // Azul oscuro
-        Color(0xFF130000), // Púrpura profundo
+        Color(0xFF130000),
+        Color(0xFF230101),
+        Color(0xFF460101),
+        Color(0xFF230101),
+        Color(0xFF130000),
     )
 
     val accentColors = listOf(
-        Color(0xFFE94560), // Rojo vibrante
-        Color(0xFFF39C12), // Naranja dorado
-        Color(0xFF9B59B6), // Púrpura vibrante
-        Color(0xFF3498DB), // Azul brillante
-        Color(0xFF1ABC9C), // Verde esmeralda
-        Color(0xFFE74C3C), // Rojo coral
+        Color(0xFFE94560),
+        Color(0xFFF39C12),
+        Color(0xFF9B59B6),
+        Color(0xFF3498DB),
+        Color(0xFF1ABC9C),
+        Color(0xFFE74C3C),
     )
 
-    // Función para recargar los datos
+    // Función para recargar los datos (mantener igual)
     fun reloadData() {
         coroutineScope.launch {
             if (currentUserId.isNotEmpty()) {
@@ -182,7 +217,8 @@ fun megustascreen(
                                 likes = doc.get("likes") as? List<String> ?: emptyList(),
                                 participants = doc.get("participants") as? List<String> ?: emptyList(),
                                 shares = (doc.getLong("shares") ?: 0).toInt(),
-                                createdAt = doc.getLong("createdAt")
+                                createdAt = doc.getLong("createdAt"),
+                                commentCount = (doc.getLong("commentCount") ?: 0).toInt()
                             )
                         } catch (e: Exception) {
                             Log.e("MeGustaScreen", "Error parsing plan: ${doc.id}", e)
@@ -215,24 +251,21 @@ fun megustascreen(
         )
     )
 
-// Fondo animado
+    // UI (mantener la misma estructura pero modificar el LazyColumn)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     colors = nightColors,
-                    startY = gradientOffsetfondo * 2000f, // Usa size.height en lugar de 1000f
-                    endY = (gradientOffsetfondo + 2f) * 2000f // Aumenta el multiplicador para cubrir toda la pantalla
+                    startY = gradientOffsetfondo * 2000f,
+                    endY = (gradientOffsetfondo + 2f) * 2000f
                 )
             )
     ) {
-        // Si tienes una línea específica animada, asegúrate de que use toda la altura:
         Canvas(
             modifier = Modifier.fillMaxSize()
         ) {
-
-            // partículas existentes...
             val particleCount = 100
             repeat(particleCount) { i ->
                 val x = (i * 137.5f + gradientOffset * 200f) % size.width
@@ -255,7 +288,6 @@ fun megustascreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Icono con glow effect
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -351,6 +383,7 @@ fun megustascreen(
                                     ) + fadeIn(animationSpec = tween(600)),
                                     modifier = Modifier.animateItemPlacement()
                                 ) {
+                                    // ✅ MODIFICADO: Agregar callback de eliminación
                                     PlanCardWithNightTheme(
                                         plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
                                             id = plan.id,
@@ -364,8 +397,8 @@ fun megustascreen(
                                             likes = plan.likes,
                                             participants = plan.participants,
                                             shares = plan.shares,
-                                            createdAt = System.currentTimeMillis(),
-                                            commentCount = plan.commentCount ?: 0
+                                            createdAt = plan.createdAt ?: System.currentTimeMillis(),
+                                            commentCount = plan.commentCount
                                         ),
                                         onPlanClick = { navigateToDetail_Plan(plan.id) },
                                         currentUserId = currentUserId,
@@ -376,7 +409,11 @@ fun megustascreen(
                                         navigateToEditPlan = { /* Empty lambda */ },
                                         navigateToMiPerfil = navigateToMiPerfil,
                                         navigateToComments = navigateToComments,
-                                        accentColors = accentColors
+                                        accentColors = accentColors,
+                                        // ✅ NUEVO: Callback para eliminación
+                                        onPlanDeleted = { planId ->
+                                            removeLikeFromPlan(planId)
+                                        }
                                     )
                                 }
                             }
@@ -390,193 +427,51 @@ fun megustascreen(
 
 @Composable
 fun LoadingSection(accentColors: List<Color>) {
-    val infiniteTransition = rememberInfiniteTransition(label = "loading")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing)
-        ),
-        label = "rotation"
-    )
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Loading indicator personalizado
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .rotate(rotationAngle)
-            ) {
-                repeat(8) { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .offset(
-                                x = (28f * cos(i * 45f * PI / 180f)).dp,
-                                y = (28f * sin(i * 45f * PI / 180f)).dp
-                            )
-                            .background(
-                                accentColors[i % accentColors.size].copy(
-                                    alpha = 0.3f + 0.7f * ((rotationAngle / 45f + i) % 8f) / 8f
-                                ),
-                                CircleShape
-                            )
-                    )
-                }
-            }
-
-            Text(
-                "Cargando tus eventos favoritos...",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-        }
+        CircularProgressIndicator(
+            color = accentColors.firstOrNull() ?: Color.Magenta
+        )
     }
 }
 
 @Composable
-fun ErrorSection(
-    errorMessage: String,
-    onRetry: () -> Unit,
-    accentColors: List<Color>
-) {
-    Box(
+fun ErrorSection(errorMessage: String, onRetry: () -> Unit, accentColors: List<Color>) {
+    Column(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFE74660),
-                                Color(0xFFF39C12)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Close, // Fixed: Changed from ErrorOutline to Error
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-
-            Text(
-                errorMessage,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-
-            Button(
-                onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
-                ),
-                modifier = Modifier
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFFE94560),
-                                Color(0xFFF39C12)
-                            )
-                        ),
-                        shape = RoundedCornerShape(25.dp)
-                    )
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    "Reintentar",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+        Text(
+            text = errorMessage,
+            color = Color.Red,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("Reintentar")
         }
     }
 }
 
 @Composable
 fun EmptySection(accentColors: List<Color>) {
-    val infiniteTransition = rememberInfiniteTransition(label = "empty")
-    val heartScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "heartScale"
-    )
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .scale(heartScale)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFE94560).copy(alpha = 0.3f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.FavoriteBorder,
-                    contentDescription = null,
-                    tint = Color(0xFFE94560),
-                    modifier = Modifier.size(60.dp)
-                )
-            }
-
-            Text(
-                "¡Explora y encuentra eventos increíbles!",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                "Dale 'Me gusta' a los eventos que más te emocionen y aparecerán aquí",
-                color = Color.White.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-        }
+        Text(
+            text = "No tienes planes favoritos todavía",
+            color = Color.White,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
-// Extensión para aplicar tema nocturno al PlanCard original
+
+// 2. Modificar PlanCardWithNightTheme para recibir el callback
 @Composable
 fun PlanCardWithNightTheme(
     plan: com.santiago.sindesparches.presentation.publicaciones.Plan,
@@ -589,9 +484,10 @@ fun PlanCardWithNightTheme(
     navigateToEditPlan: () -> Unit,
     navigateToMiPerfil: () -> Unit,
     navigateToComments: (String) -> Unit,
-    accentColors: List<Color>
+    accentColors: List<Color>,
+    // ✅ NUEVO: Agregar callback de eliminación
+    onPlanDeleted: (String) -> Unit = {}
 ) {
-    // Crear un CompositionLocalProvider para personalizar los colores
     CompositionLocalProvider(
         LocalContentColor provides Color.White
     ) {
@@ -608,7 +504,7 @@ fun PlanCardWithNightTheme(
                     ),
                     shape = RoundedCornerShape(20.dp)
                 )
-                .padding(1.dp) // Para el borde
+                .padding(1.dp)
         ) {
             // Borde con gradiente
             Box(
@@ -622,7 +518,7 @@ fun PlanCardWithNightTheme(
                     )
             )
 
-            // PlanCard original - removed invalid parameters
+            // ✅ MODIFICADO: PlanCard original con callback de eliminación
             com.santiago.sindesparches.presentation.home.PlanCard(
                 plan = plan,
                 onPlanClick = onPlanClick,
@@ -633,7 +529,9 @@ fun PlanCardWithNightTheme(
                 navigateToUserProfile = navigateToUserProfile,
                 navigateToEditPlan = { _ -> navigateToEditPlan() },
                 navigateToMiPerfil = navigateToMiPerfil,
-                navigateToComments = navigateToComments
+                navigateToComments = navigateToComments,
+                // ✅ NUEVO: Pasar el callback de eliminación
+                onPlanDeleted = onPlanDeleted
             )
         }
     }

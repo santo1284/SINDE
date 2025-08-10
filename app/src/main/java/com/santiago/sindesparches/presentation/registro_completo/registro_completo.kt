@@ -173,9 +173,9 @@ fun registro_completo(auth: FirebaseAuth,
                     .width(350.dp)
                     .height(56.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = boton_texto)
+                colors = ButtonDefaults.buttonColors(containerColor = azul_final)
             ) {
-                Text(text = "aceptar", color = black)
+                Text(text = "aceptar", color = white)
 
             }
             Spacer(modifier = Modifier.weight(1f))
