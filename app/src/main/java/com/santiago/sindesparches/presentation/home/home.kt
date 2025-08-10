@@ -1615,7 +1615,7 @@ fun PlanCard(
 
                     userProfiles.add(
                         UserProfile(
-                            userId = userId,
+                            id = userId,
                             nombre = name,
                             profileImageUrl = profileImageUrl
                         )
@@ -1623,7 +1623,7 @@ fun PlanCard(
                 } catch (e: Exception) {
                     userProfiles.add(
                         UserProfile(
-                            userId = userId,
+                            id = userId,
                             nombre = "Usuario",
                             profileImageUrl = null
                         )
@@ -2466,10 +2466,10 @@ fun PlanCard(
                                 userProfile = userProfile,
                                 onClick = {
                                     showLikesDialog = false
-                                    if (userProfile.userId == currentUserId) {
+                                    if (userProfile.id == currentUserId) {
                                         navigateToMiPerfil()
                                     } else {
-                                        navigateToUserProfile(userProfile.userId)
+                                        navigateToUserProfile(userProfile.id)
                                     }
                                 }
                             )
@@ -2546,10 +2546,10 @@ fun PlanCard(
                                 userProfile = userProfile,
                                 onClick = {
                                     showParticipantsDialog = false
-                                    if (userProfile.userId == currentUserId) {
+                                    if (userProfile.id == currentUserId) {
                                         navigateToMiPerfil()
                                     } else {
-                                        navigateToUserProfile(userProfile.userId)
+                                        navigateToUserProfile(userProfile.id)
                                     }
                                 }
                             )

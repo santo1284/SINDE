@@ -385,7 +385,7 @@ fun megustascreen(
                                 ) {
                                     // ✅ MODIFICADO: Agregar callback de eliminación
                                     PlanCardWithNightTheme(
-                                        plan = com.santiago.sindesparches.presentation.publicaciones.Plan(
+                                        plan = com.santiago.sindesparches.data.models.Plan(
                                             id = plan.id,
                                             userId = plan.userId,
                                             title = plan.title,
@@ -394,8 +394,8 @@ fun megustascreen(
                                             timeString = plan.timeString,
                                             location = plan.location,
                                             imageUrls = plan.imageUrls,
-                                            likes = plan.likes,
-                                            participants = plan.participants,
+                                            likes = plan.likes?: emptyList(),
+                                            participants = plan.participants?: emptyList(),
                                             shares = plan.shares,
                                             createdAt = plan.createdAt ?: System.currentTimeMillis(),
                                             commentCount = plan.commentCount
@@ -474,7 +474,7 @@ fun EmptySection(accentColors: List<Color>) {
 // 2. Modificar PlanCardWithNightTheme para recibir el callback
 @Composable
 fun PlanCardWithNightTheme(
-    plan: com.santiago.sindesparches.presentation.publicaciones.Plan,
+    plan: com.santiago.sindesparches.data.models.Plan,
     onPlanClick: () -> Unit,
     currentUserId: String,
     db: FirebaseFirestore,

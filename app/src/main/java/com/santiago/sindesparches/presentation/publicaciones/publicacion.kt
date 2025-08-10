@@ -132,6 +132,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun publicacion_screen(
@@ -310,6 +311,8 @@ fun publicacion_screen(
                     colors = CardDefaults.cardColors(containerColor = surfaceDark),
                     shape = RoundedCornerShape(16.dp)
                 ) {
+                    var location by remember { mutableStateOf("") }
+
                     val progress = when {
                         title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
                                 && selectedDate != null && selectedTime.isNotBlank() && selectedImages.isNotEmpty() -> 1f

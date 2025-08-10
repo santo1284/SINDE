@@ -16,7 +16,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -29,47 +28,66 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
-
+    // Firebase BOM
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.storage)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
-    implementation ("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
     implementation(libs.firebase.analytics)
-    implementation("io.coil-kt:coil-compose:2.2.2")
     implementation("com.google.firebase:firebase-messaging-directboot:24.1.2")
+    implementation(libs.firebase.appcheck.playintegrity)
+    implementation(libs.firebase.storage.ktx)
 
-    implementation ("com.facebook.android:facebook-login:16.2.0")
-    implementation ("com.facebook.android:facebook-android-sdk:16.2.0")
+    // Facebook SDK
+    implementation("com.facebook.android:facebook-login:16.2.0")
+    implementation("com.facebook.android:facebook-android-sdk:16.2.0")
 
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
-    implementation ("com.facebook.android:facebook-login:16.2.0")
+    // Corrutinas
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
 
+    // Coil
+    implementation("io.coil-kt:coil-compose:2.2.2")
 
-
+    // Play Services Auth
     implementation(libs.play.services.auth)
+
+    // Animaciones
     implementation(libs.animation)
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
 
-    implementation(libs.firebase.analytics)
+    // Google Maps Compose (versión estable compatible con gestos)
+    implementation("com.google.maps.android:maps-compose:4.3.0")
 
+    // Google Play Services Maps y Location
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.libraries.places:places:3.5.0")
+    // Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+
+
+    // Accompanist Permissions (última versión estable)
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+
+    // Jetpack Compose
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -79,9 +97,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.firebase.storage.ktx)
     implementation(libs.androidx.compose.material)
-    implementation(libs.firebase.appcheck.playintegrity)
+
+    // Tests
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
