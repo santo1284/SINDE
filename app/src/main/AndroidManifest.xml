@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Facebook App queries -->
     <queries>
@@ -31,6 +33,11 @@
         android:theme="@style/Theme.SinDesparches"
         tools:targetApi="31"
         android:usesCleartextTraffic="true">
+
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyDEJtE6QCsXOEUW4oc20eufIj9p79WrVI4" />
 
         <!-- Facebook SDK -->
         <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id" />

@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -112,6 +113,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
+import com.santiago.sindesparches.data.models.Plan
 import com.santiago.sindesparches.ui.theme.white
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -130,32 +132,14 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-data class Plan(
-    val id: String = "",
-    val userId: String = "",
-    val createdAt: Long = 0,
-    val title: String = "",
-    val updatedAt: Long? = null, //para qeu aparezcan todas las publicaciones
-    val description: String = "",
-    val date: Long = 0,
-    val timeString: String = "",
-    val location: String = "",
-    val imageUrls: List<String> = emptyList(),
-    val enableWhatsapp: Boolean? = false,  // Nuevo campo para habilitar WhatsApp
-    val phoneNumber: String = "",  // Número de teléfono para WhatsApp
-    val likes: List<String>? = emptyList(),        // IDs de usuarios que dieron like
-    val participants: List<String>? = emptyList(), // IDs de usuarios que participan
-    val shares: Int = 0,
-    val commentCount: Int = 0
-)
-
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun publicacion_screen(
     auth: FirebaseAuth,
     db: FirebaseFirestore,
-    navigateToHome: () -> Unit
+    navController: androidx.navigation.NavController,
+    navigateToHome: () -> Unit,
+    navigateToMapPicker: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -164,7 +148,9 @@ fun publicacion_screen(
     // Estados para los campos del formulario
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
+    var locationAddress by remember { mutableStateOf("Seleccionar ubicación") }
+    var locationLat by remember { mutableStateOf<Double?>(null) }
+    var locationLng by remember { mutableStateOf<Double?>(null) }
 
     // Estados para animaciones
     var isFormVisible by remember { mutableStateOf(false) }
@@ -174,6 +160,26 @@ fun publicacion_screen(
     LaunchedEffect(Unit) {
         delay(100)
         isFormVisible = true
+    }
+
+    // Observer para el resultado del MapPickerScreen
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val navBackStackEntry = navController.currentBackStackEntry
+    val savedStateHandle = navBackStackEntry?.savedStateHandle
+
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.getLiveData<String>("location_address")?.observe(lifecycleOwner) { address ->
+            locationAddress = address
+            savedStateHandle.remove<String>("location_address")
+        }
+        savedStateHandle?.getLiveData<Double>("location_lat")?.observe(lifecycleOwner) { lat ->
+            locationLat = lat
+            savedStateHandle.remove<Double>("location_lat")
+        }
+        savedStateHandle?.getLiveData<Double>("location_lng")?.observe(lifecycleOwner) { lng ->
+            locationLng = lng
+            savedStateHandle.remove<Double>("location_lng")
+        }
     }
 
     // Estado para el DatePicker
@@ -250,7 +256,7 @@ fun publicacion_screen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (formHasContent(title, description, location, selectedDate, selectedImages)) {
+                            if (formHasContent(title, description, locationAddress, selectedDate, selectedImages)) {
                                 showExitDialog = true
                             } else {
                                 navigateToHome()
@@ -437,16 +443,19 @@ fun publicacion_screen(
                 }
 
                 // Ubicación
-                AnimatedTextField(
-                    value = location,
-                    onValueChange = { location = it },
-                    label = "¿Dónde será?",
-                    icon = Icons.Default.LocationOn,
-                    isVisible = isFormVisible,
-                    delay = 300,
-                    primaryColor = accentSecondary,
-                    surfaceColor = surfaceLight
-                )
+                Box(modifier = Modifier.clickable { navigateToMapPicker() }) {
+                    AnimatedTextField(
+                        value = locationAddress,
+                        onValueChange = { },
+                        label = "¿Dónde será?",
+                        icon = Icons.Default.LocationOn,
+                        isVisible = isFormVisible,
+                        delay = 300,
+                        primaryColor = accentSecondary,
+                        surfaceColor = surfaceLight,
+                        readOnly = true
+                    )
+                }
 
                 // Sección de imágenes
                 Card(
@@ -528,7 +537,7 @@ fun publicacion_screen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            if (validateForm(title, description, location, selectedDate, selectedImages, snackbarHostState)) {
+                            if (validateForm(title, description, locationAddress, selectedDate, selectedImages, snackbarHostState)) {
                                 isLoading = true
                                 try {
                                     // Lógica de publicación aquí
@@ -545,7 +554,9 @@ fun publicacion_screen(
                                             description = description,
                                             date = selectedDate ?: 0L,
                                             timeString = selectedTime,
-                                            location = location,
+                                            location = locationAddress,
+                                            latitude = locationLat,
+                                            longitude = locationLng,
                                             imageUrls = imageUrls,
                                             enableWhatsapp = enableWhatsapp,
                                             phoneNumber = if (enableWhatsapp) phoneNumber else ""
@@ -567,7 +578,7 @@ fun publicacion_screen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
-                            description.isNotBlank() && location.isNotBlank() && selectedDate != null && selectedTime.isNotBlank(),
+                            description.isNotBlank() && locationAddress != "Seleccionar ubicación" && selectedDate != null && selectedTime.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Brush.horizontalGradient(
                             colors = listOf(primaryColor, accentColor)
@@ -776,7 +787,8 @@ fun AnimatedTextField(
     primaryColor: Color,
     surfaceColor: Color,
     multiline: Boolean = false,
-    maxLines: Int = 1
+    maxLines: Int = 1,
+    readOnly: Boolean = false
 ) {
     var isFieldVisible by remember { mutableStateOf(false) }
 
@@ -809,6 +821,7 @@ fun AnimatedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .let { if (multiline) it.heightIn(min = 120.dp) else it },
+                readOnly = readOnly,
                 singleLine = !multiline,
                 maxLines = maxLines,
                 colors = TextFieldDefaults.colors(
@@ -983,7 +996,7 @@ private fun formHasContent(
     selectedDate: Long?,
     selectedImages: List<Uri>
 ): Boolean {
-    return title.isNotBlank() || description.isNotBlank() || location.isNotBlank() ||
+    return title.isNotBlank() || description.isNotBlank() || (location != "Seleccionar ubicación") ||
             selectedDate != null || selectedImages.isNotEmpty()
 }
 
@@ -1005,7 +1018,7 @@ private suspend fun validateForm(
             snackbarHostState.showSnackbar("Por favor, introduce una descripción")
             return false
         }
-        location.isBlank() -> {
+        location == "Seleccionar ubicación" -> {
             snackbarHostState.showSnackbar("Por favor, introduce una ubicación")
             return false
         }

@@ -44,7 +44,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
-import com.santiago.sindesparches.presentation.publicaciones.Plan
+import com.santiago.sindesparches.data.models.Plan
+import com.santiago.sindesparches.data.models.UserProfile
 import com.santiago.sindesparches.ui.theme.Purple
 import com.santiago.sindesparches.ui.theme.azul
 import com.santiago.sindesparches.ui.theme.azul_mitad
@@ -66,6 +67,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.rememberCameraPositionState
 import com.santiago.sindesparches.ui.theme.boton
 import kotlin.math.PI
 import kotlin.math.sin
@@ -665,11 +672,56 @@ fun PlanDetailScreen(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                InfoRow(
-                                    icon = Icons.Filled.Place,
-                                    text = plan!!.location,
-                                    color = electricBlue
-                                )
+                                if (plan!!.latitude != null && plan.longitude != null) {
+                                    val location = LatLng(plan.latitude!!, plan.longitude!!)
+                                    val cameraPositionState = rememberCameraPositionState {
+                                        position = CameraPosition.fromLatLngZoom(location, 15f)
+                                    }
+
+                                    Text(
+                                        text = "Ubicación",
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            shadow = Shadow(
+                                                color = deepPurple.copy(alpha = 0.7f),
+                                                blurRadius = 8f
+                                            )
+                                        ),
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(200.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .clickable {
+                                                val gmmIntentUri = Uri.parse("google.navigation:q=${plan.latitude},${plan.longitude}")
+                                                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                                                mapIntent.setPackage("com.google.android.apps.maps")
+                                                context.startActivity(mapIntent)
+                                            },
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
+                                        GoogleMap(
+                                            modifier = Modifier.fillMaxSize(),
+                                            cameraPositionState = cameraPositionState,
+                                            uiSettings = MapUiSettings(allGesturesEnabled = false, zoomControlsEnabled = false)
+                                        ) {
+                                            Marker(
+                                                state = MarkerState(position = location),
+                                                title = plan.title
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    InfoRow(
+                                        icon = Icons.Filled.Place,
+                                        text = plan!!.location,
+                                        color = electricBlue
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -1016,12 +1068,3 @@ private fun formatFullDate(dateMillis: Long): String {
 }
 
 // Data class para el perfil del usuario (ajusta según tu estructura)
-data class UserProfile(
-    val userId: String,
-    val nombre: String? = null,
-    val email: String? = null,
-    val profileImageUrl: String? = null,
-    val bio: String? = null,
-    val createdAt: Long? = null
-    // Añade otros campos que tengas en tu colección perfil
-)

@@ -292,10 +292,18 @@ fun Navegacion(
 
         composable("publicaciones") {
             publicacion_screen(auth = auth, db,
+                navController = navController,
                 navigateToHome = {
                     navController.navigate("home")
+                },
+                navigateToMapPicker = {
+                    navController.navigate("map_picker")
                 }
             )
+        }
+
+        composable("map_picker") {
+            com.santiago.sindesparches.presentation.map_picker.MapPickerScreen(navController = navController)
         }
 
         composable(

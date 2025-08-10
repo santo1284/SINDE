@@ -36,6 +36,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
+import com.santiago.sindesparches.data.models.Plan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -44,23 +45,6 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-
-// Data class actualizada
-data class Plan(
-    val id: String = "",
-    val title: String = "",
-    val description: String = "",
-    val location: String = "",
-    val date: Long = 0L,
-    val timeString: String = "",
-    val imageUrls: List<String> = emptyList(),
-    val userId: String = "",
-    val createdAt: Long = 0L,
-    val updatedAt: Long? = null,
-    val enableWhatsapp: Boolean = false,
-    val phoneNumber: String = "",
-    val commentCount: Int = 0
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
