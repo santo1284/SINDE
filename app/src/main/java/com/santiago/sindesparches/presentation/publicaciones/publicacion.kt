@@ -90,6 +90,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -145,16 +146,36 @@ fun publicacion_screen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Estados para los campos del formulario
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var locationAddress by remember { mutableStateOf("Seleccionar ubicación") }
-    var locationLat by remember { mutableStateOf<Double?>(null) }
-    var locationLng by remember { mutableStateOf<Double?>(null) }
+    // ⭐ SOLUCIÓN: Usar rememberSaveable para persistir TODOS los datos del formulario
+    // Esto garantiza que los datos sobrevivan a la navegación y recomposiciones
+    var title by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var locationAddress by rememberSaveable { mutableStateOf("Seleccionar ubicación") }
+    var locationLat by rememberSaveable { mutableStateOf<Double?>(null) }
+    var locationLng by rememberSaveable { mutableStateOf<Double?>(null) }
+    var selectedDate by rememberSaveable { mutableStateOf<Long?>(null) }
+    var formattedDate by rememberSaveable { mutableStateOf("") }
+    var selectedTime by rememberSaveable { mutableStateOf("") }
+    var enableWhatsapp by rememberSaveable { mutableStateOf(false) }
 
-    // Estados para animaciones
+    // Estados para animaciones (no necesitan persistir)
     var isFormVisible by remember { mutableStateOf(false) }
-    var currentStep by remember { mutableStateOf(0) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isLoadingNumero by remember { mutableStateOf(true) }
+    var phoneNumber by remember { mutableStateOf("") }
+
+    // ⭐ LISTA DE IMÁGENES persistente - requiere un approach especial
+    val selectedImages = remember { mutableStateListOf<Uri>() }
+
+    // Estados de pickers
+    val datePickerState = rememberDatePickerState()
+    val timePickerState = rememberTimePickerState()
+
+    // Control de procesamiento de ubicación
+    var hasProcessedLocation by rememberSaveable { mutableStateOf(false) }
 
     // Animación de entrada
     LaunchedEffect(Unit) {
@@ -162,64 +183,53 @@ fun publicacion_screen(
         isFormVisible = true
     }
 
-    // Observer para el resultado del MapPickerScreen
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val navBackStackEntry = navController.currentBackStackEntry
-    val savedStateHandle = navBackStackEntry?.savedStateHandle
+    // ⭐ OBSERVER MEJORADO: Procesa ubicación una sola vez y respeta los datos existentes
+    LaunchedEffect(navController.currentBackStackEntry?.savedStateHandle) {
+        val handle = navController.currentBackStackEntry?.savedStateHandle
 
-    LaunchedEffect(savedStateHandle) {
-        savedStateHandle?.getLiveData<String>("location_address")?.observe(lifecycleOwner) { address ->
-            locationAddress = address
-            savedStateHandle.remove<String>("location_address")
-        }
-        savedStateHandle?.getLiveData<Double>("location_lat")?.observe(lifecycleOwner) { lat ->
-            locationLat = lat
-            savedStateHandle.remove<Double>("location_lat")
-        }
-        savedStateHandle?.getLiveData<Double>("location_lng")?.observe(lifecycleOwner) { lng ->
-            locationLng = lng
-            savedStateHandle.remove<Double>("location_lng")
-        }
-    }
+        if (handle != null) {
+            val address = handle.get<String>("location_address")
+            val lat = handle.get<Double>("location_lat")
+            val lng = handle.get<Double>("location_lng")
 
-    // Estado para el DatePicker
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
-    var selectedDate by remember { mutableStateOf<Long?>(null) }
-    var formattedDate by remember { mutableStateOf("") }
+            Log.d("PublicacionScreen", "🔍 Verificando datos de ubicación:")
+            Log.d("PublicacionScreen", "   Address: $address")
+            Log.d("PublicacionScreen", "   Current Address: $locationAddress")
+            Log.d("PublicacionScreen", "   Has processed: $hasProcessedLocation")
 
-    // Estado para el TimePicker
-    var showTimePicker by remember { mutableStateOf(false) }
-    val timePickerState = rememberTimePickerState()
-    var selectedTime by remember { mutableStateOf("") }
+            // Solo procesar si hay datos válidos y aún no se han procesado
+            if (address != null && lat != null && lng != null && !hasProcessedLocation) {
+                Log.d("PublicacionScreen", "✅ Procesando nueva ubicación...")
 
-    // Estado para las imágenes
-    val selectedImages = remember { mutableStateListOf<Uri>() }
-    var isLoading by remember { mutableStateOf(false) }
-    var showExitDialog by remember { mutableStateOf(false) }
+                // Actualizar datos de ubicación SIN afectar otros campos
+                locationAddress = address
+                locationLat = lat
+                locationLng = lng
+                hasProcessedLocation = true
 
-    // Galería de imágenes launcher
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            val remainingSlots = 5 - selectedImages.size
-            if (remainingSlots > 0) {
-                val newImages = uris.take(remainingSlots)
-                selectedImages.addAll(newImages)
+                // Limpiar datos del handle
+                handle.remove<String>("location_address")
+                handle.remove<Double>("location_lat")
+                handle.remove<Double>("location_lng")
+
+                Log.d("PublicacionScreen", "🎉 Ubicación actualizada: $locationAddress")
+                Log.d("PublicacionScreen", "📝 Datos preservados - Título: '$title', Desc: '${description.take(30)}...'")
             }
         }
     }
 
-    // Estados para WhatsApp
-    var enableWhatsapp by remember { mutableStateOf(false) }
-    val currentUserId = auth.currentUser?.uid ?: ""
-    var phoneNumber by remember { mutableStateOf("") }
-    var isLoadingNumero by remember { mutableStateOf(true) }
+    // ⭐ RESET del flag cuando salimos de la pantalla
+    LaunchedEffect(navController.currentBackStackEntry?.destination?.route) {
+        val currentRoute = navController.currentBackStackEntry?.destination?.route
+        if (currentRoute?.contains("publicacion") != true) {
+            hasProcessedLocation = false
+        }
+    }
 
     // Cargar número de teléfono
-    LaunchedEffect(currentUserId) {
-        if (currentUserId.isNotEmpty()) {
+    LaunchedEffect(auth.currentUser?.uid) {
+        val currentUserId = auth.currentUser?.uid
+        if (currentUserId != null) {
             try {
                 val snapshot = db.collection("perfil")
                     .document(currentUserId)
@@ -241,6 +251,20 @@ fun publicacion_screen(
     val backgroundDark = Color(0xFF0F0F23)
     val surfaceDark = Color(0xFF1A1A2E)
     val surfaceLight = Color(0xFF252547)
+
+    // 🔥 FUNCIÓN DE NAVEGACIÓN mejorada
+    val navigateToMapWithPreservation = {
+        Log.d("PublicacionScreen", "🚀 Navegando al mapa con datos preservados:")
+        Log.d("PublicacionScreen", "   Título: '$title'")
+        Log.d("PublicacionScreen", "   Descripción: '${description.take(50)}...'")
+        Log.d("PublicacionScreen", "   Fecha: $formattedDate")
+        Log.d("PublicacionScreen", "   Hora: $selectedTime")
+        Log.d("PublicacionScreen", "   Imágenes: ${selectedImages.size}")
+
+        // Marcar que necesitamos procesar ubicación cuando regresemos
+        hasProcessedLocation = false
+        navigateToMapPicker()
+    }
 
     Scaffold(
         topBar = {
@@ -355,7 +379,10 @@ fun publicacion_screen(
                 // Título del evento
                 AnimatedTextField(
                     value = title,
-                    onValueChange = { title = it },
+                    onValueChange = { newValue ->
+                        title = newValue
+                        Log.d("PublicacionScreen", "✏️ Título actualizado: '$newValue'")
+                    },
                     label = "Nombre del evento",
                     icon = Icons.Default.Star,
                     isVisible = isFormVisible,
@@ -367,7 +394,10 @@ fun publicacion_screen(
                 // Descripción
                 AnimatedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { newValue ->
+                        description = newValue
+                        Log.d("PublicacionScreen", "✏️ Descripción actualizada: '${newValue.take(30)}...'")
+                    },
                     label = "¿Qué tienes planeado?",
                     icon = Icons.Default.Create,
                     isVisible = isFormVisible,
@@ -442,80 +472,24 @@ fun publicacion_screen(
                     }
                 }
 
-                // Ubicación
-                LocationDisplay(
+                // Ubicación - usando la función mejorada
+                EnhancedLocationDisplay(
                     locationAddress = locationAddress,
-                    onClick = navigateToMapPicker,
+                    onClick = navigateToMapWithPreservation,
                     accentSecondary = accentSecondary,
-                    surfaceLight = surfaceLight
+                    surfaceLight = surfaceLight,
+                    locationLat = locationLat,
+                    locationLng = locationLng,
+                    context = context
                 )
 
-                // Sección de imágenes
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
-                    colors = CardDefaults.cardColors(containerColor = surfaceDark),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null,
-                                tint = primaryColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Imágenes del evento",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = "${selectedImages.size}/5",
-                                color = primaryColor,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(selectedImages) { uri ->
-                                ImageCard(
-                                    uri = uri,
-                                    onRemove = { selectedImages.remove(uri) }
-                                )
-                            }
-
-                            if (selectedImages.size < 5) {
-                                item {
-                                    AddImageCard(
-                                        onClick = { galleryLauncher.launch("image/*") }
-                                    )
-                                }
-                            }
-                        }
-
-                        if (selectedImages.isEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Agrega al menos una imagen para mostrar tu evento",
-                                color = accentSecondary,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
+                // Sección de imágenes - Usando componente corregido
+                ImagesSection(
+                    selectedImages = selectedImages,
+                    primaryColor = primaryColor,
+                    accentSecondary = accentSecondary,
+                    surfaceDark = surfaceDark
+                )
 
                 // Sección de WhatsApp
                 WhatsAppSection(
@@ -533,7 +507,6 @@ fun publicacion_screen(
                             if (validateForm(title, description, locationAddress, selectedDate, selectedImages, snackbarHostState)) {
                                 isLoading = true
                                 try {
-                                    // Lógica de publicación aquí
                                     val currentUser = auth.currentUser
                                     if (currentUser != null) {
                                         val planId = UUID.randomUUID().toString()
@@ -573,9 +546,7 @@ fun publicacion_screen(
                     enabled = !isLoading && selectedImages.isNotEmpty() && title.isNotBlank() &&
                             description.isNotBlank() && locationAddress != "Seleccionar ubicación" && selectedDate != null && selectedTime.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Brush.horizontalGradient(
-                            colors = listOf(primaryColor, accentColor)
-                        ).let { primaryColor }, // Fallback para el gradient
+                        containerColor = primaryColor,
                         disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
                     ),
                     shape = RoundedCornerShape(16.dp)
@@ -606,7 +577,6 @@ fun publicacion_screen(
                     }
                 }
 
-                // Espacio final
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
@@ -623,6 +593,7 @@ fun publicacion_screen(
                             selectedDate = dateMillis
                             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                             formattedDate = sdf.format(Date(dateMillis))
+                            Log.d("PublicacionScreen", "📅 Fecha seleccionada: $formattedDate")
                         }
                         showDatePicker = false
                     }
@@ -720,6 +691,7 @@ fun publicacion_screen(
                                 val formattedMinute = minute.toString().padStart(2, '0')
                                 selectedTime = "$formattedHour:$formattedMinute"
                                 showTimePicker = false
+                                Log.d("PublicacionScreen", "⏰ Hora seleccionada: $selectedTime")
                             }
                         ) {
                             Text("Confirmar", color = primaryColor)
@@ -770,11 +742,14 @@ fun publicacion_screen(
 }
 
 @Composable
-fun LocationDisplay(
+fun EnhancedLocationDisplay(
     locationAddress: String,
     onClick: () -> Unit,
     accentSecondary: Color,
-    surfaceLight: Color
+    surfaceLight: Color,
+    locationLat: Double? = null,
+    locationLng: Double? = null,
+    context: Context
 ) {
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -794,23 +769,210 @@ fun LocationDisplay(
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
             colors = CardDefaults.cardColors(containerColor = surfaceLight),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(20.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = "Ubicación",
-                    tint = accentSecondary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = locationAddress,
-                    color = if (locationAddress == "Seleccionar ubicación") Color.Gray else Color.White,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                // Header con icono y título
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        accentSecondary.copy(alpha = 0.3f),
+                                        accentSecondary.copy(alpha = 0.1f)
+                                    )
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Ubicación",
+                            tint = accentSecondary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Ubicación del evento",
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (locationAddress == "Seleccionar ubicación")
+                                "Toca para seleccionar ubicación"
+                            else "Ubicación seleccionada",
+                            color = if (locationAddress == "Seleccionar ubicación")
+                                accentSecondary
+                            else Color.Green,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Botón de editar
+                    IconButton(
+                        onClick = onClick,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                Color.White.copy(alpha = 0.1f),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar ubicación",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Información de la ubicación
+                if (locationAddress != "Seleccionar ubicación") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Black.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            // Dirección
+                            Row(
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = accentSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = locationAddress,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // Coordenadas
+                            if (locationLat != null && locationLng != null) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.bxs_invader),
+                                        contentDescription = "Coordenadas",
+                                        tint = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${String.format("%.4f", locationLat)}, ${String.format("%.4f", locationLng)}",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Botón para abrir en Google Maps
+                                Button(
+                                    onClick = {
+                                        openLocationInGoogleMaps(context, locationLat, locationLng, locationAddress)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.Transparent
+                                    ),
+                                    border = BorderStroke(1.dp, accentSecondary.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.bxs_user),
+                                        contentDescription = "Ver en mapa",
+                                        tint = accentSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Ver en Google Maps",
+                                        color = accentSecondary,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Estado vacío - mostrar placeholder atractivo
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            accentSecondary.copy(alpha = 0.2f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Seleccionar ubicación",
+                                tint = accentSecondary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Agregar ubicación",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Toca para seleccionar dónde será tu evento",
+                            color = Color.White.copy(alpha = 0.6f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         }
     }
@@ -1026,6 +1188,122 @@ fun WhatsAppSection(
         }
     }
 }
+
+// ⭐ SECCIÓN DE IMÁGENES CORREGIDA - Componente separado
+@Composable
+fun ImagesSection(
+    selectedImages: androidx.compose.runtime.snapshots.SnapshotStateList<Uri>,
+    primaryColor: Color,
+    accentSecondary: Color,
+    surfaceDark: Color
+) {
+    // Gallery launcher dentro del componente
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val remainingSlots = 5 - selectedImages.size
+            if (remainingSlots > 0) {
+                val newImages = uris.take(remainingSlots)
+                selectedImages.addAll(newImages)
+                Log.d("PublicacionScreen", "📸 Imágenes agregadas: ${newImages.size}, Total: ${selectedImages.size}")
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(containerColor = surfaceDark),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Imágenes del evento",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${selectedImages.size}/5",
+                    color = primaryColor,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(selectedImages) { uri ->
+                    ImageCard(
+                        uri = uri,
+                        onRemove = { selectedImages.remove(uri) }
+                    )
+                }
+
+                if (selectedImages.size < 5) {
+                    item {
+                        AddImageCard(
+                            onClick = { galleryLauncher.launch("image/*") }
+                        )
+                    }
+                }
+            }
+
+            if (selectedImages.isEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Agrega al menos una imagen para mostrar tu evento",
+                    color = accentSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+// Función auxiliar para abrir Google Maps
+private fun openLocationInGoogleMaps(
+    context: Context,
+    lat: Double,
+    lng: Double,
+    address: String
+) {
+    try {
+        val encodedAddress = URLEncoder.encode(address, StandardCharsets.UTF_8.toString())
+        val geoUri = "geo:$lat,$lng?q=$lat,$lng($encodedAddress)"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri))
+        intent.setPackage("com.google.android.apps.maps")
+
+        if (intent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intent)
+        } else {
+            // Fallback a navegador web
+            val webUri = "https://www.google.com/maps/search/?api=1&query=$lat,$lng"
+            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(webUri))
+            context.startActivity(webIntent)
+        }
+    } catch (e: Exception) {
+        Log.e("LocationDisplay", "Error abriendo Google Maps: ${e.message}")
+    }
+}
+
 // Función para comprobar si el formulario tiene algún contenido
 private fun formHasContent(
     title: String,

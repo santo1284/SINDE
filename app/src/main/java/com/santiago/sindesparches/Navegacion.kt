@@ -303,7 +303,9 @@ fun Navegacion(
         }
 
         composable("map_picker") {
-            com.santiago.sindesparches.presentation.map_picker.MapPickerScreen(navController = navController)
+            com.santiago.sindesparches.presentation.map_picker.MapPickerScreen(
+                navController = navController
+            )
         }
 
         composable(
