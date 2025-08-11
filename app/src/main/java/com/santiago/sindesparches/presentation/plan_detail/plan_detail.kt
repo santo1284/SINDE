@@ -72,6 +72,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.santiago.sindesparches.ui.theme.boton
 import kotlin.math.PI
@@ -672,8 +673,8 @@ fun PlanDetailScreen(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                if (plan!!.latitude != null && plan.longitude != null) {
-                                    val location = LatLng(plan.latitude!!, plan.longitude!!)
+                                if (plan!!.latitude != null && plan!!.longitude != null) {
+                                    val location = LatLng(plan!!.latitude!!, plan!!.longitude!!)
                                     val cameraPositionState = rememberCameraPositionState {
                                         position = CameraPosition.fromLatLngZoom(location, 15f)
                                     }
@@ -697,7 +698,7 @@ fun PlanDetailScreen(
                                             .height(200.dp)
                                             .clip(RoundedCornerShape(16.dp))
                                             .clickable {
-                                                val gmmIntentUri = Uri.parse("google.navigation:q=${plan.latitude},${plan.longitude}")
+                                                val gmmIntentUri = Uri.parse("google.navigation:q=${plan!!.latitude},${plan!!.longitude}")
                                                 val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
                                                 mapIntent.setPackage("com.google.android.apps.maps")
                                                 context.startActivity(mapIntent)
@@ -707,11 +708,17 @@ fun PlanDetailScreen(
                                         GoogleMap(
                                             modifier = Modifier.fillMaxSize(),
                                             cameraPositionState = cameraPositionState,
-                                            uiSettings = MapUiSettings(allGesturesEnabled = false, zoomControlsEnabled = false)
+                                            uiSettings = MapUiSettings(
+                                                zoomControlsEnabled = false,
+                                                scrollGesturesEnabled = false,
+                                                zoomGesturesEnabled = false,
+                                                tiltGesturesEnabled = false,
+                                                rotationGesturesEnabled = false
+                                            )
                                         ) {
                                             Marker(
                                                 state = MarkerState(position = location),
-                                                title = plan.title
+                                                title = plan!!.title
                                             )
                                         }
                                     }

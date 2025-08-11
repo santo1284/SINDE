@@ -26,7 +26,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
-import com.santiago.sindesparches.presentation.publicaciones.Plan
+import com.santiago.sindesparches.data.models.Plan
 import android.content.Context
 import android.util.Log
 import android.widget.Toast

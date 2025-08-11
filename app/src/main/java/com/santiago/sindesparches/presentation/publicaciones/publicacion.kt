@@ -311,11 +311,11 @@ fun publicacion_screen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     val progress = when {
-                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
+                        title.isNotBlank() && description.isNotBlank() && locationAddress.isNotBlank() && locationAddress != "Seleccionar ubicación"
                                 && selectedDate != null && selectedTime.isNotBlank() && selectedImages.isNotEmpty() -> 1f
-                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank()
+                        title.isNotBlank() && description.isNotBlank() && locationAddress.isNotBlank() && locationAddress != "Seleccionar ubicación"
                                 && selectedDate != null && selectedTime.isNotBlank() -> 0.8f
-                        title.isNotBlank() && description.isNotBlank() && location.isNotBlank() -> 0.6f
+                        title.isNotBlank() && description.isNotBlank() && locationAddress.isNotBlank() && locationAddress != "Seleccionar ubicación" -> 0.6f
                         title.isNotBlank() && description.isNotBlank() -> 0.4f
                         title.isNotBlank() -> 0.2f
                         else -> 0f
