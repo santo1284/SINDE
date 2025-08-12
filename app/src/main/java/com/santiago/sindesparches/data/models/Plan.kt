@@ -18,5 +18,9 @@ data class Plan(
     val likes: List<String> = emptyList(),
     val participants: List<String> = emptyList(),
     val shares: Int = 0,
-    val commentCount: Int = 0
+    val commentCount: Int = 0,
+    // ✅ NUEVOS CAMPOS PARA UBICACIÓN
+    val locationAddress: String? = null, // Dirección completa del mapa
+    val city: String? = null,        // Ciudad extraída de la ubicación
+    val state: String? = null        // Estado/Departamento
 )

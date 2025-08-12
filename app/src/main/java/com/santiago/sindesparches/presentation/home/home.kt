@@ -127,6 +127,7 @@ import com.santiago.sindesparches.R
 import com.santiago.sindesparches.data.models.Plan
 import com.santiago.sindesparches.data.models.UserProfile
 import com.santiago.sindesparches.presentation.flash_plan.obtenerNombreUsuario
+import com.santiago.sindesparches.presentation.location_settings.LocationSuggestion
 import com.santiago.sindesparches.presentation.notifications.sendNotification
 import com.santiago.sindesparches.ui.theme.Purple
 import com.santiago.sindesparches.ui.theme.azul
@@ -155,13 +156,14 @@ fun homeScreen(
     navigateToFlashPlan: () -> Unit = {},
     navigateToPublicaciones: () -> Unit = {},
     navigateToPlanDetail: (String) -> Unit,
-    navigateToUserProfile: (String) -> Unit ={} ,
+    navigateToUserProfile: (String) -> Unit = {},
     navigateToMiPerfil: () -> Unit = {},
     navigateToEditPlan: (String) -> Unit = {},
     navigateToMegusta: () -> Unit = {},
     navigateToParticipar: () -> Unit = {},
     navigateToNotifications: () -> Unit = {},
     navigateToComments: (String) -> Unit = {},
+    navigateToLocationSettings: () -> Unit = {} // ✅ NUEVA NAVEGACIÓN
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
@@ -172,6 +174,12 @@ fun homeScreen(
     var stories by remember { mutableStateOf<List<Story>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // ✅ NUEVAS VARIABLES PARA UBICACIÓN
+    var userLocation by remember { mutableStateOf<LocationSuggestion?>(null) }
+    var isLoadingLocation by remember { mutableStateOf(true) }
+    var showLocationDialog by remember { mutableStateOf(false) }
+    var filteredPlanesByLocation by remember { mutableStateOf<List<Plan>>(emptyList()) }
+    var locationFilterRadius by remember { mutableStateOf(50.0) } // 50km radius default
 
     //colors
     val vibrantPink = Color(0xFFEC4899)
@@ -221,18 +229,18 @@ fun homeScreen(
     var isLoadingpublicacion by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-
-    //variables cerrar secion
-
-    // Estado para controlar la visibilidad del diálogo
+    //variables cerrar sesion
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-// Colores del tema oscuro para eventos
+    // Colores del tema oscuro para eventos
     val nightBackground = Color(0xFF0A0E27)
     val deepPurple = Color(0xFF6366F1)
     val neonGreen = Color(0xFF10B981)
     val cardBackground = Color(0xFF1A1D3A)
     val surfaceVariant = Color(0xFF2D2F4F)
+    val black = Color.Black
+    val boton = Color(0xFF333333)
+
     // Animación para el efecto glow
     val infiniteTransition = rememberInfiniteTransition()
     val glowAnimation by infiniteTransition.animateFloat(
@@ -244,9 +252,363 @@ fun homeScreen(
         )
     )
 
+    // ✅ FUNCIÓN PARA CALCULAR DISTANCIA ENTRE DOS COORDENADAS
+    fun calculateDistance(
+        lat1: Double, lon1: Double,
+        lat2: Double, lon2: Double
+    ): Double {
+        val earthRadius = 6371.0 // Radio de la Tierra en km
 
-    //funcion cerrar sesion confirmacion
-    // Diálogo personalizado de confirmación
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return earthRadius * c
+    }
+
+    // ✅ FUNCIÓN PARA FILTRAR PLANES POR UBICACIÓN
+    fun filterPlanesByLocation(
+        allPlanes: List<Plan>,
+        userLat: Double?,
+        userLng: Double?,
+        radiusKm: Double = 50.0
+    ): List<Plan> {
+        if (userLat == null || userLng == null) {
+            return allPlanes // Si no hay ubicación del usuario, mostrar todos
+        }
+
+        return allPlanes.filter { plan ->
+            try {
+                // ✅ CAMBIO: tu Plan ya tiene latitude y longitude como Double?
+                val planLat = plan.latitude
+                val planLng = plan.longitude
+
+                if (planLat != null && planLng != null) {
+                    val distance = calculateDistance(userLat, userLng, planLat, planLng)
+                    distance <= radiusKm
+                } else {
+                    // Si el plan no tiene coordenadas, incluirlo para no excluir contenido
+                    true
+                }
+            } catch (e: Exception) {
+                Log.e("HomeScreen", "Error calculando distancia para plan ${plan.id}", e)
+                true // En caso de error, incluir el plan
+            }
+        }
+    }
+
+    // ✅ FUNCIÓN COMBINADA DE FILTRADO (ubicación + búsqueda)
+    fun applyAllFilters(
+        allPlanes: List<Plan>,
+        searchQuery: String,
+        userLat: Double?,
+        userLng: Double?
+    ): List<Plan> {
+        // Primero filtrar por ubicación
+        val locationFiltered = filterPlanesByLocation(allPlanes, userLat, userLng, locationFilterRadius)
+
+        // Luego filtrar por búsqueda
+        return if (searchQuery.isBlank()) {
+            locationFiltered
+        } else {
+            locationFiltered.filter { plan ->
+                plan.title.contains(searchQuery, ignoreCase = true) ||
+                        plan.description.contains(searchQuery, ignoreCase = true) ||
+                        plan.location.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    // ✅ CARGAR UBICACIÓN DEL USUARIO DESDE FIRESTORE
+    LaunchedEffect(Unit) {
+        val userId = auth.currentUser?.uid
+        if (userId != null) {
+            try {
+                db.collection("perfil").document(userId)
+                    .get()
+                    .addOnSuccessListener { document ->
+                        isLoadingLocation = false
+                        val locationData = document.get("location") as? Map<String, Any>
+
+                        if (locationData != null) {
+                            userLocation = LocationSuggestion(
+                                displayName = locationData["displayName"] as? String ?: "Ubicación",
+                                fullAddress = locationData["fullAddress"] as? String ?: "",
+                                latitude = (locationData["latitude"] as? Number)?.toDouble() ?: 0.0,
+                                longitude = (locationData["longitude"] as? Number)?.toDouble() ?: 0.0,
+                                city = locationData["city"] as? String ?: "",
+                                state = locationData["state"] as? String ?: "",
+                                country = locationData["country"] as? String ?: ""
+                            )
+                            Log.d("HomeScreen", "Ubicación cargada: ${userLocation?.displayName}")
+                        } else {
+                            // Primera vez que el usuario abre la app - preguntar por ubicación
+                            showLocationDialog = true
+                            Log.d("HomeScreen", "No hay ubicación guardada - mostrar diálogo")
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("HomeScreen", "Error cargando ubicación del usuario", e)
+                        isLoadingLocation = false
+                        showLocationDialog = true
+                    }
+            } catch (e: Exception) {
+                Log.e("HomeScreen", "Error en LaunchedEffect de ubicación", e)
+                isLoadingLocation = false
+            }
+        }
+    }
+
+    // ✅ ACTUALIZAR PLANES CUANDO CAMBIE LA UBICACIÓN O BÚSQUEDA
+    LaunchedEffect(searchText, userLocation, allPlanes) {
+        planes = applyAllFilters(
+            allPlanes,
+            searchText,
+            userLocation?.latitude,
+            userLocation?.longitude
+        )
+    }
+
+    // Variables para las imágenes de perfil y nombres de usuario
+    val currentUserId = auth.currentUser?.uid.orEmpty()
+    val context = LocalContext.current
+    var userProfileImages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var imagenUrl by remember { mutableStateOf<String?>(null) }
+    var nombreuser by remember { mutableStateOf<String?>(null) }
+    val nombreCorto = nombreuser?.split(" ")?.firstOrNull() ?: ""
+
+    fun obtenerFotoPerfilUrl(onResult: (String?) -> Unit) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return onResult(null)
+        val storageRef = FirebaseStorage.getInstance().reference
+            .child("profile_pictures/$uid")
+
+        storageRef.downloadUrl
+            .addOnSuccessListener { uri -> onResult(uri.toString()) }
+            .addOnFailureListener { onResult(null) }
+    }
+
+    fun NombreUsuario(onResult: (String?) -> Unit) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return onResult(null)
+        FirebaseFirestore.getInstance().collection("perfil").document(uid)
+            .get()
+            .addOnSuccessListener { document ->
+                onResult(document.getString("nombre"))
+            }
+            .addOnFailureListener { onResult(null) }
+    }
+
+    LaunchedEffect(Unit) {
+        NombreUsuario { nombreuser = it }
+        obtenerFotoPerfilUrl { imagenUrl = it }
+    }
+
+    //nombre de quien creo el flashplan
+    var nombre_flashplan by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        obtenerNombreUsuario { resultado ->
+            nombre_flashplan = resultado
+        }
+    }
+
+    // ✅ DIÁLOGO PARA PEDIR PERMISO DE UBICACIÓN
+    if (showLocationDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showLocationDialog = false
+                // Si el usuario cierra el diálogo, mostrar todos los planes de Colombia
+            },
+            containerColor = cardBackground,
+            shape = RoundedCornerShape(25.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = electricBlue,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "¡Encuentra eventos cerca de ti!",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Para mostrarte los mejores eventos cerca de tu ubicación, necesitamos saber dónde te encuentras.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.9f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Puedes configurar tu ciudad manualmente o permitir que detectemos tu ubicación actual.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLocationDialog = false
+                        navigateToLocationSettings()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = electricBlue
+                    )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Configurar Ubicación")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLocationDialog = false }
+                ) {
+                    Text(
+                        "Ver todos los eventos",
+                        color = Color.Gray
+                    )
+                }
+            }
+        )
+    }
+
+    // Funciones para eliminar planes de la lista
+    fun removePlanFromList(planId: String) {
+        planes = planes.filter { it.id != planId }
+        allPlanes = allPlanes.filter { it.id != planId }
+    }
+
+    fun deleteFlashPlan(flashPlanId: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+        db.collection("flashPlans").document(flashPlanId)
+            .delete()
+            .addOnSuccessListener {
+                stories = stories.filter { it.id != flashPlanId }
+                onSuccess()
+                Log.d("HomeScreen", "FlashPlan eliminado exitosamente")
+            }
+            .addOnFailureListener { e ->
+                Log.e("HomeScreen", "Error al eliminar FlashPlan", e)
+                onFailure(e)
+            }
+    }
+
+    // Cargar FlashPlans
+    LaunchedEffect(Unit) {
+        try {
+            val twentyFourHoursAgo = System.currentTimeMillis() - 86400000
+
+            db.collection("flashPlans")
+                .whereGreaterThan("timestamp", Timestamp(twentyFourHoursAgo / 1000, 0))
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Log.e("HomeScreen", "Error al cargar FlashPlans", e)
+                        Toast.makeText(context, "Error al cargar historias", Toast.LENGTH_SHORT).show()
+                        isLoading = false
+                        return@addSnapshotListener
+                    }
+
+                    val flashPlanList = mutableListOf<Story>()
+                    val userIds = mutableSetOf<String>()
+
+                    snapshot?.documents?.forEach { doc ->
+                        val userId = doc.getString("userId") ?: ""
+                        val userName = doc.getString("userName") ?: nombre_flashplan.orEmpty()
+                        val imageUrl = doc.getString("imageUrl") ?: ""
+                        val timestamp = (doc.getTimestamp("timestamp")?.toDate()?.time ?: System.currentTimeMillis())
+                        val viewers = doc.get("viewers") as? List<String> ?: emptyList()
+
+                        if (userId.isNotEmpty()) {
+                            userIds.add(userId)
+                        }
+
+                        flashPlanList.add(
+                            Story(
+                                id = doc.id,
+                                imageUrl = imageUrl,
+                                userId = userId,
+                                username = userName,
+                                timestamp = timestamp,
+                                viewers = viewers
+                            )
+                        )
+                    }
+
+                    stories = flashPlanList
+
+                    // Cargar imágenes de perfil
+                    if (userIds.isNotEmpty()) {
+                        val profileImagesMap = mutableMapOf<String, String>()
+                        userIds.forEach { userId ->
+                            val storageRef = FirebaseStorage.getInstance().reference
+                                .child("profile_pictures/$userId")
+
+                            storageRef.downloadUrl
+                                .addOnSuccessListener { uri ->
+                                    profileImagesMap[userId] = uri.toString()
+                                    userProfileImages = profileImagesMap.toMap()
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("HomeScreen", "Error al cargar imagen de perfil para usuario $userId", e)
+                                }
+                        }
+                    }
+
+                    isLoading = false
+                }
+        } catch (e: Exception) {
+            Log.e("HomeScreen", "Error al configurar listener de FlashPlans", e)
+            isLoading = false
+        }
+    }
+
+    // ✅ Cargar publicaciones desde Firestore
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                isLoadingpublicacion = true
+                val loadedPlanes = getPlanes(db)
+                allPlanes = loadedPlanes // ✅ Guardar lista completa
+                // planes se actualiza automáticamente en LaunchedEffect de filtros
+                isLoadingpublicacion = false
+            } catch (e: Exception) {
+                errorMessage = "Error al cargar los planes: ${e.message}"
+                isLoadingpublicacion = false
+                Log.e("HomeScreen", "Error al cargar planes", e)
+            }
+        }
+    }
+
+    // Diálogo de confirmación de logout
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -269,7 +631,6 @@ fun homeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Icono con efecto glow
                     Box(
                         modifier = Modifier
                             .size(48.dp)
@@ -314,7 +675,6 @@ fun homeScreen(
             },
             text = {
                 Column {
-                    // Línea decorativa
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -355,7 +715,6 @@ fun homeScreen(
                 }
             },
             confirmButton = {
-                // Botón de confirmar con efecto glassmorphism
                 Button(
                     onClick = {
                         showLogoutDialog = false
@@ -414,7 +773,6 @@ fun homeScreen(
                 }
             },
             dismissButton = {
-                // Botón de cancelar con efecto neón
                 TextButton(
                     onClick = { showLogoutDialog = false },
                     modifier = Modifier
@@ -467,24 +825,6 @@ fun homeScreen(
         )
     }
 
-    // ✅ Función para filtrar planes por búsqueda
-    fun filterPlanes(searchQuery: String): List<Plan> {
-        return if (searchQuery.isBlank()) {
-            allPlanes
-        } else {
-            allPlanes.filter { plan ->
-                plan.title.contains(searchQuery, ignoreCase = true) ||
-                        plan.description.contains(searchQuery, ignoreCase = true) ||
-                        plan.location.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
-
-    // ✅ Actualizar planes filtrados cuando cambie el texto de búsqueda
-    LaunchedEffect(searchText) {
-        planes = filterPlanes(searchText)
-    }
-
     // Animaciones para los menús laterales
     val leftMenuOffset by animateDpAsState(
         targetValue = if (showLeftMenu) 0.dp else (-150).dp,
@@ -498,166 +838,6 @@ fun homeScreen(
         label = "rightMenuAnimation"
     )
 
-    val currentUserId = auth.currentUser?.uid.orEmpty()
-    val context = LocalContext.current
-
-    var userProfileImages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-
-    var imagenUrl by remember { mutableStateOf<String?>(null) }
-    fun obtenerFotoPerfilUrl(onResult: (String?) -> Unit) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return onResult(null)
-        val storageRef = FirebaseStorage.getInstance().reference
-            .child("profile_pictures/$uid")
-
-        storageRef.downloadUrl
-            .addOnSuccessListener { uri -> onResult(uri.toString()) }
-            .addOnFailureListener { onResult(null) }
-    }
-    var nombreuser by remember { mutableStateOf<String?>(null) }
-    val nombreCorto = nombreuser?.split(" ")?.firstOrNull() ?: ""
-
-    fun NombreUsuario(onResult: (String?) -> Unit) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return onResult(null)
-        FirebaseFirestore.getInstance().collection("perfil").document(uid)
-            .get()
-            .addOnSuccessListener { document ->
-                onResult(document.getString("nombre"))
-            }
-            .addOnFailureListener { onResult(null) }
-    }
-
-    LaunchedEffect(Unit) {
-        NombreUsuario { nombreuser = it }
-        obtenerFotoPerfilUrl { imagenUrl = it }
-    }
-
-    //nombre de quien creo el flashplan
-    var nombre_flashplan by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
-        obtenerNombreUsuario { resultado ->
-            nombre_flashplan = resultado
-        }
-    }
-
-    // Reemplaza tu LaunchedEffect actual con esta versión mejorada:
-
-    LaunchedEffect(Unit) {
-        try {
-            val twentyFourHoursAgo = System.currentTimeMillis() - 86400000
-
-            db.collection("flashPlans")
-                .whereGreaterThan("timestamp", Timestamp(twentyFourHoursAgo / 1000, 0))
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .addSnapshotListener { snapshot, e ->
-                    if (e != null) {
-                        Log.e("HomeScreen", "Error al cargar FlashPlans", e)
-                        Toast.makeText(context, "Error al cargar historias", Toast.LENGTH_SHORT).show()
-                        isLoading = false
-                        return@addSnapshotListener
-                    }
-
-                    val flashPlanList = mutableListOf<Story>()
-                    val userIds = mutableSetOf<String>()
-
-                    snapshot?.documents?.forEach { doc ->
-                        val userId = doc.getString("userId") ?: ""
-                        val userName = doc.getString("userName") ?: nombre_flashplan.orEmpty()
-                        val imageUrl = doc.getString("imageUrl") ?: ""
-                        val timestamp = (doc.getTimestamp("timestamp")?.toDate()?.time ?: System.currentTimeMillis())
-
-                        // ✅ Obtener viewers correctamente de Firestore
-                        val viewers = doc.get("viewers") as? List<String> ?: emptyList()
-
-                        if (userId.isNotEmpty()) {
-                            userIds.add(userId)
-                        }
-
-                        flashPlanList.add(
-                            Story(
-                                id = doc.id,
-                                imageUrl = imageUrl,
-                                userId = userId,
-                                username = userName,
-                                timestamp = timestamp,
-                                viewers = viewers // ✅ Esto mantendrá el estado actualizado
-                            )
-                        )
-                    }
-
-                    // ✅ Actualizar stories manteniendo el estado de viewers
-                    stories = flashPlanList
-
-                    // Función para eliminar FlashPlan (mantener como estaba)
-                    fun deleteFlashPlan(flashPlanId: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
-                        db.collection("flashPlans").document(flashPlanId)
-                            .delete()
-                            .addOnSuccessListener {
-                                stories = stories.filter { it.id != flashPlanId }
-                                onSuccess()
-                                Log.d("HomeScreen", "FlashPlan eliminado exitosamente")
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("HomeScreen", "Error al eliminar FlashPlan", e)
-                                onFailure(e)
-                            }
-                    }
-
-                    // Cargar imágenes de perfil
-                    if (userIds.isNotEmpty()) {
-                        val profileImagesMap = mutableMapOf<String, String>()
-                        userIds.forEach { userId ->
-                            val storageRef = FirebaseStorage.getInstance().reference
-                                .child("profile_pictures/$userId")
-
-                            storageRef.downloadUrl
-                                .addOnSuccessListener { uri ->
-                                    profileImagesMap[userId] = uri.toString()
-                                    userProfileImages = profileImagesMap.toMap()
-                                }
-                                .addOnFailureListener { e ->
-                                    Log.e("HomeScreen", "Error al cargar imagen de perfil para usuario $userId", e)
-                                    // Respaldo con Firestore
-                                    db.collection("perfil").document(userId)
-                                        .get()
-                                        .addOnSuccessListener { userDoc ->
-                                            val profileImageUrl = userDoc.getString("profileImageUrl") ?: ""
-                                            if (profileImageUrl.isNotEmpty()) {
-                                                profileImagesMap[userId] = profileImageUrl
-                                                userProfileImages = profileImagesMap.toMap()
-                                            }
-                                        }
-                                        .addOnFailureListener {
-                                            Log.e("HomeScreen", "Error al cargar desde Firestore para usuario $userId", it)
-                                        }
-                                }
-                        }
-                    }
-
-                    isLoading = false
-                }
-        } catch (e: Exception) {
-            Log.e("HomeScreen", "Error al configurar listener de FlashPlans", e)
-            isLoading = false
-        }
-    }
-
-    // ✅ Cargar publicaciones desde Firestore
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            try {
-                isLoadingpublicacion = true
-                val loadedPlanes = getPlanes(db)
-                allPlanes = loadedPlanes // ✅ Guardar lista completa
-                planes = loadedPlanes     // ✅ Mostrar lista completa inicialmente
-                isLoadingpublicacion = false
-            } catch (e: Exception) {
-                errorMessage = "Error al cargar los planes: ${e.message}"
-                isLoadingpublicacion = false
-                Log.e("HomeScreen", "Error al cargar planes", e)
-            }
-        }
-    }
-
     BackHandler {
         when {
             showStory -> showStory = false
@@ -665,12 +845,10 @@ fun homeScreen(
                 showRightMenu = false
                 return@BackHandler
             }
-
             showLeftMenu -> {
                 showLeftMenu = false
                 return@BackHandler
             }
-
             else -> showDialog = true
         }
     }
@@ -713,147 +891,211 @@ fun homeScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(black)
-                        // ✅ Aplicar alpha cuando hay menús activos
                         .alpha(if (showLeftMenu || showRightMenu) 0.3f else 1f)
                 ) {
-                    // Header con título, búsqueda, menú y botón flotante
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // ✅ HEADER ACTUALIZADO CON UBICACIÓN
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Text(
-                            "SINDE",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        // Primera fila: Título y menú
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Título SINDE
+                            Text(
+                                "SINDE",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
 
-                        // ✅ TextField de búsqueda mejorado
-                        TextField(
-                            value = searchText,
-                            onValueChange = { searchText = it },
-                            placeholder = {
-                                Text(
-                                    "Buscar..",
-                                    color = Color.Gray
-                                )
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 8.dp),
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedContainerColor = Color.Gray.copy(alpha = 0.2f),
-                                unfocusedContainerColor = Color.Gray.copy(alpha = 0.2f),
-                                cursorColor = Color.White,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(25.dp),
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = "Buscar",
-                                    tint = Color.Gray
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchText.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { searchText = "" }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Clear,
-                                            contentDescription = "Limpiar",
-                                            tint = Color.Gray
-                                        )
+                            // Campo de búsqueda con peso flexible
+                            TextField(
+                                value = searchText,
+                                onValueChange = { searchText = it },
+                                placeholder = {
+                                    Text(
+                                        "Buscar",
+                                        color = Color.Gray
+                                    )
+                                },
+                                modifier = Modifier
+                                    .weight(1f) // Toma el espacio disponible
+                                    .padding(horizontal = 16.dp) // Espaciado lateral
+                                    .heightIn(min = 48.dp), // Altura mínima consistente
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedContainerColor = Color.Gray.copy(alpha = 0.2f),
+                                    unfocusedContainerColor = Color.Gray.copy(alpha = 0.2f),
+                                    cursorColor = Color.White,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(25.dp),
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = "Buscar",
+                                        tint = Color.Gray
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchText.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { searchText = "" }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Clear,
+                                                contentDescription = "Limpiar",
+                                                tint = Color.Gray
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // Botón flotante reposicionado en la parte superior derecha
-                            AnimatedVisibility(
-                                visible = isButtonVisible,
-                                enter = fadeIn() + scaleIn(),
-                                exit = fadeOut() + scaleOut()
+                            // Contenedor para botones del lado derecho
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                FloatingActionButton(
-                                    onClick = navigateToPublicaciones,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            brush = Brush.linearGradient(
-                                                colors = listOf(
-                                                    vibrantPink.copy(alpha = 0.9f),
-                                                    electricBlue.copy(alpha = 0.9f)
-                                                ),
-                                                start = Offset(0f, 0f),
-                                                end = Offset(100f, 100f)
-                                            ),
-                                            shape = CircleShape
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            brush = Brush.linearGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = 0.5f),
-                                                    Color.White.copy(alpha = 0.1f)
-                                                )
-                                            ),
-                                            shape = CircleShape
-                                        ),
-                                    containerColor = Color.Transparent,
-                                    contentColor = Color.White,
-                                    elevation = FloatingActionButtonDefaults.elevation(
-                                        defaultElevation = 12.dp,
-                                        pressedElevation = 16.dp
+                                // Botón flotante con AnimatedVisibility mejorado
+                                AnimatedVisibility(
+                                    visible = isButtonVisible,
+                                    enter = fadeIn(
+                                        animationSpec = tween(300)
+                                    ) + scaleIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = fadeOut(
+                                        animationSpec = tween(300)
+                                    ) + scaleOut(
+                                        animationSpec = tween(300)
                                     )
                                 ) {
+                                    FloatingActionButton(
+                                        onClick = navigateToPublicaciones,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .background(
+                                                brush = Brush.linearGradient(
+                                                    colors = listOf(
+                                                        vibrantPink.copy(alpha = 0.9f),
+                                                        electricBlue.copy(alpha = 0.9f)
+                                                    ),
+                                                    start = Offset(0f, 0f),
+                                                    end = Offset(100f, 100f)
+                                                ),
+                                                shape = CircleShape
+                                            )
+                                            .border(
+                                                width = 1.dp,
+                                                brush = Brush.linearGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.5f),
+                                                        Color.White.copy(alpha = 0.1f)
+                                                    )
+                                                ),
+                                                shape = CircleShape
+                                            ),
+                                        containerColor = Color.Transparent,
+                                        contentColor = Color.White,
+                                        elevation = FloatingActionButtonDefaults.elevation(
+                                            defaultElevation = 12.dp,
+                                            pressedElevation = 16.dp
+                                        )
+                                    ) {
                                         Icon(
                                             Icons.Default.Add,
                                             contentDescription = "Crear publicación",
                                             modifier = Modifier.size(24.dp),
                                             tint = Color.White
                                         )
+                                    }
+                                }
 
+                                // Botón de menú (siempre visible)
+                                IconButton(
+                                    onClick = {
+                                        showRightMenu = !showRightMenu
+                                        if (showRightMenu) showLeftMenu = false
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Menu,
+                                        contentDescription = "Menú",
+                                        tint = Color.White
+                                    )
                                 }
                             }
+                        }
 
-                            IconButton(onClick = {
-                                showRightMenu = !showRightMenu
-                                if (showRightMenu) showLeftMenu = false
-                            }) {
-                                Icon(
-                                    Icons.Default.Menu,
-                                    contentDescription = "Menú",
-                                    tint = Color.White
+
+                    }
+
+                    // ✅ Mostrar contador de resultados actualizado
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (searchText.isNotEmpty() || userLocation != null) {
+                            Column {
+                                if (searchText.isNotEmpty()) {
+                                    Text(
+                                        text = "Búsqueda: \"$searchText\"",
+                                        color = Color.Gray,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Text(
+                                    text = buildString {
+                                        append("${planes.size} evento${if (planes.size != 1) "s" else ""}")
+                                        if (userLocation != null) {
+                                            append(" cerca de ${userLocation!!.displayName}")
+                                        } else {
+                                            append(" en Colombia")
+                                        }
+                                    },
+                                    color = electricBlue,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
-                    }
 
-                    // ✅ Mostrar contador de resultados de búsqueda
-                    if (searchText.isNotEmpty()) {
-                        Text(
-                            text = "Encontrados: ${planes.size} plan${if (planes.size != 1) "es" else ""}",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
-                    fun removePlanFromList(planId: String) {
-                        planes = planes.filter { it.id != planId }
-                        allPlanes = allPlanes.filter { it.id != planId }
+                        // Botón para ajustar radio (solo si hay ubicación)
+                        if (userLocation != null) {
+                            TextButton(
+                                onClick = {
+                                    // Alternar entre diferentes radios: 25km, 50km, 100km, sin límite
+                                    locationFilterRadius = when (locationFilterRadius) {
+                                        25.0 -> 50.0
+                                        50.0 -> 100.0
+                                        100.0 -> 999999.0 // Sin límite
+                                        else -> 25.0
+                                    }
+                                }
+                            ) {
+                                Text(
+                                    text = when (locationFilterRadius) {
+                                        25.0 -> "25km"
+                                        50.0 -> "50km"
+                                        100.0 -> "100km"
+                                        else -> "Sin límite"
+                                    },
+                                    color = vibrantPink,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
 
                     // Contenido principal de publicaciones
@@ -888,7 +1130,6 @@ fun homeScreen(
                                                     isLoadingpublicacion = true
                                                     val loadedPlanes = getPlanes(db)
                                                     allPlanes = loadedPlanes
-                                                    planes = filterPlanes(searchText) // ✅ Aplicar filtro actual
                                                     isLoadingpublicacion = false
                                                 } catch (e: Exception) {
                                                     errorMessage = "Error al cargar los planes: ${e.message}"
@@ -909,8 +1150,7 @@ fun homeScreen(
                                         .padding(16.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    // ✅ Diferentes mensajes según si hay búsqueda activa o no
-                                    if (searchText.isNotEmpty()) {
+                                    if (searchText.isNotEmpty() || userLocation != null) {
                                         Icon(
                                             Icons.Default.Search,
                                             contentDescription = null,
@@ -919,23 +1159,51 @@ fun homeScreen(
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
-                                            text = "No se encontraron planes para \"$searchText\"",
+                                            text = if (searchText.isNotEmpty()) {
+                                                "No se encontraron eventos para \"$searchText\""
+                                            } else {
+                                                "No hay eventos cerca de ${userLocation?.displayName}"
+                                            },
                                             style = MaterialTheme.typography.titleMedium,
                                             color = Color.White,
                                             textAlign = TextAlign.Center
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text = "Intenta con otros términos de búsqueda",
+                                            text = if (searchText.isNotEmpty()) {
+                                                "Intenta con otros términos de búsqueda"
+                                            } else {
+                                                "Prueba expandiendo el radio de búsqueda"
+                                            },
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = Color.Gray,
                                             textAlign = TextAlign.Center
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { searchText = "" }
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text("Limpiar búsqueda")
+                                            if (searchText.isNotEmpty()) {
+                                                Button(
+                                                    onClick = { searchText = "" }
+                                                ) {
+                                                    Text("Limpiar búsqueda")
+                                                }
+                                            }
+                                            if (userLocation != null) {
+                                                Button(
+                                                    onClick = {
+                                                        locationFilterRadius = when (locationFilterRadius) {
+                                                            25.0 -> 50.0
+                                                            50.0 -> 100.0
+                                                            100.0 -> 999999.0
+                                                            else -> 25.0
+                                                        }
+                                                    }
+                                                ) {
+                                                    Text("Expandir radio")
+                                                }
+                                            }
                                         }
                                     } else {
                                         Text(
@@ -967,7 +1235,7 @@ fun homeScreen(
                                             db = db,
                                             coroutineScope = coroutineScope,
                                             context = context,
-                                            searchText = searchText, // ✅ Pasar texto de búsqueda para destacar coincidencias
+                                            searchText = searchText,
                                             navigateToUserProfile = navigateToUserProfile,
                                             navigateToEditPlan = navigateToEditPlan,
                                             navigateToMiPerfil = navigateToMiPerfil,
@@ -991,29 +1259,11 @@ fun homeScreen(
                     .background(Color.Transparent)
                     .pointerInput(Unit) {
                         detectTapGestures {
-                            // Cerrar menús al tocar el overlay
                             showLeftMenu = false
                             showRightMenu = false
                         }
                     }
-                    .zIndex(0.5f) // Por encima del contenido, pero debajo de los menús
-            )
-        }
-
-       // OVERLAY TRANSPARENTE para bloquear interacciones cuando hay menús activos
-        if (showLeftMenu || showRightMenu) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-                    .pointerInput(Unit) {
-                        detectTapGestures {
-                            // Cerrar menús al tocar el overlay
-                            showLeftMenu = false
-                            showRightMenu = false
-                        }
-                    }
-                    .zIndex(0.5f) // Por encima del contenido, pero debajo de los menús
+                    .zIndex(0.5f)
             )
         }
 
@@ -1026,7 +1276,7 @@ fun homeScreen(
                 .background(boton)
                 .padding(top = 60.dp)
                 .padding(start = 16.dp)
-                .zIndex(2f) // ✅ Más alto que el overlay
+                .zIndex(2f)
         ) {
             Column {
                 Spacer(Modifier.height(50.dp))
@@ -1060,8 +1310,6 @@ fun homeScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
-                    // Reemplaza la sección de LazyColumn de los FlashPlans con este código mejorado:
-
                     LazyColumn {
                         items(stories.size) { index ->
                             val story = stories[index]
@@ -1081,9 +1329,7 @@ fun homeScreen(
                                         showStory = true
                                         currentStory = story
 
-                                        // ✅ Marcar como visto SOLO si no ha sido visto antes
                                         if (!seen) {
-                                            // Primero actualizar el estado local inmediatamente
                                             stories = stories.map { s ->
                                                 if (s.id == story.id) {
                                                     s.copy(viewers = s.viewers + currentUserId)
@@ -1092,12 +1338,10 @@ fun homeScreen(
                                                 }
                                             }
 
-                                            // Luego actualizar en Firestore
                                             db.collection("flashPlans").document(story.id)
                                                 .update("viewers", FieldValue.arrayUnion(currentUserId))
                                                 .addOnFailureListener { e ->
                                                     Log.e("HomeScreen", "Error al marcar FlashPlan como visto", e)
-                                                    // Revertir el cambio local si falla la actualización
                                                     stories = stories.map { s ->
                                                         if (s.id == story.id) {
                                                             s.copy(viewers = s.viewers - currentUserId)
@@ -1109,7 +1353,6 @@ fun homeScreen(
                                         }
                                     }
                             ) {
-                                // Contenido del FlashPlan (imagen de perfil)
                                 val profileImageUrl = userProfileImages[story.userId]
 
                                 if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
@@ -1122,7 +1365,6 @@ fun homeScreen(
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
-                                    // Imagen por defecto si no hay imagen de perfil
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -1139,13 +1381,11 @@ fun homeScreen(
                                 }
                             }
 
-                            // Nombre del usuario debajo del FlashPlan
                             Text(
                                 text = story.username.take(8),
                                 color = Color.White,
                                 fontSize = 10.sp,
-                                modifier = Modifier.padding(top = 2.dp, start = 20.dp),
-
+                                modifier = Modifier.padding(top = 2.dp, start = 20.dp)
                             )
                         }
                     }
@@ -1153,7 +1393,7 @@ fun homeScreen(
             }
         }
 
-        //  Menú derecho
+        // Menú derecho
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -1232,9 +1472,97 @@ fun homeScreen(
                         icon = Icons.Default.Notifications,
                         onClick = navigateToNotifications
                     )
+
+                    // Sección de ubicación reorganizada
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { navigateToLocationSettings() }
+                            .background(
+                                Color.White.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(14.dp)
+                    ) {
+                        // Título principal
+                        Text(
+                            text = "Ciudad del parche",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Ícono + nombre de la ciudad
+                        if (isLoadingLocation) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = "Ubicación",
+                                    tint = electricBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Cargando ubicación...",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = "Ubicación",
+                                    tint = electricBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = userLocation?.displayName ?: "Toda Colombia",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Radio (solo si hay ubicación)
+                            if (userLocation != null) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Radio: ${locationFilterRadius.toInt()} km",
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Botón cambiar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text(
+                                text = "Cambiar",
+                                color = electricBlue,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1.5f))
 
                 // Botón de cerrar sesión
                 MenuItem(
@@ -1246,31 +1574,13 @@ fun homeScreen(
                 )
             }
         }
-
-        // Primero, agrega la función de eliminar dentro de tu homeScreen composable:
-
-        fun deleteFlashPlan(flashPlanId: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
-            db.collection("flashPlans").document(flashPlanId)
-                .delete()
-                .addOnSuccessListener {
-                    // Actualizar la lista local inmediatamente
-                    stories = stories.filter { it.id != flashPlanId }
-                    onSuccess()
-                    Log.d("HomeScreen", "FlashPlan eliminado exitosamente")
-                }
-                .addOnFailureListener { e ->
-                    Log.e("HomeScreen", "Error al eliminar FlashPlan", e)
-                    onFailure(e)
-                }
-        }
-        // Historia en pantalla completa por 3s
+        // Historia en pantalla completa
         if (showStory && currentStory != null) {
             val progress = remember { Animatable(0f) }
 
             LaunchedEffect(currentStory) {
                 progress.snapTo(0f)
 
-                // Marcar como visto al abrir la historia (si no estaba visto)
                 val seen = currentStory!!.viewers.contains(currentUserId)
                 if (!seen) {
                     db.collection("flashPlans").document(currentStory!!.id)
@@ -1307,7 +1617,6 @@ fun homeScreen(
                     contentScale = ContentScale.Fit
                 )
 
-                // Barra de progreso y detalles del usuario
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1364,21 +1673,18 @@ fun homeScreen(
                     }
                 }
 
-                // Botones en la parte superior derecha
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Botón de eliminar - Solo visible para el creador del FlashPlan
                     if (currentStory!!.userId == currentUserId) {
                         IconButton(
                             onClick = {
                                 deleteFlashPlan(currentStory!!.id) {
                                     showStory = false
                                     currentStory = null
-                                    // Opcional: mostrar mensaje de confirmación
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("FlashPlan eliminado")
                                     }
@@ -1398,7 +1704,6 @@ fun homeScreen(
                         }
                     }
 
-                    // Botón para cerrar
                     IconButton(
                         onClick = { showStory = false },
                         modifier = Modifier
@@ -1416,7 +1721,6 @@ fun homeScreen(
                 }
             }
         }
-
 
         // Diálogo salir
         if (showDialog) {
@@ -1439,11 +1743,8 @@ fun homeScreen(
                 }
             )
         }
-
     }
-
 }
-
 
 
 @Composable
@@ -2764,25 +3065,49 @@ suspend fun getUserNames(userIds: List<String>, db: FirebaseFirestore): List<Str
 // funcion para enviar notificaciones
 
 // Función para obtener los planes desde Firestore
-private suspend fun getPlanes(db: FirebaseFirestore): List<Plan> = withContext(Dispatchers.IO) {
-    try {
-        val documents = db.collection("planes")
+// ✅ FUNCIÓN getPlanes ACTUALIZADA PARA TU ESTRUCTURA
+suspend fun getPlanes(db: FirebaseFirestore): List<Plan> {
+    return try {
+        val result = db.collection("planes")
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .get()
             .await()
 
-        return@withContext documents.documents.mapNotNull { document ->
+        result.documents.mapNotNull { document ->
             try {
-                val plan = document.toObject(Plan::class.java)
-                plan?.copy(id = document.id) // ✅ Siempre asignar el ID
+                Plan(
+                    id = document.id,
+                    userId = document.getString("userId") ?: "",
+                    createdAt = document.getLong("createdAt") ?: 0L,
+                    title = document.getString("title") ?: "",
+                    updatedAt = document.getLong("updatedAt"),
+                    description = document.getString("description") ?: "",
+                    date = document.getLong("date") ?: 0L,
+                    timeString = document.getString("timeString") ?: "",
+                    location = document.getString("location") ?: "",
+                    latitude = document.getDouble("latitude"),
+                    longitude = document.getDouble("longitude"),
+                    imageUrls = (document.get("imageUrls") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    enableWhatsapp = document.getBoolean("enableWhatsapp"),
+                    phoneNumber = document.getString("phoneNumber") ?: "",
+                    likes = (document.get("likes") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    participants = (document.get("participants") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    shares = (document.getLong("shares") ?: 0L).toInt(),
+                    commentCount = (document.getLong("commentCount") ?: 0L).toInt(),
+
+                    // ✅ CAMPOS DE UBICACIÓN (ya existían en tu Plan)
+                    locationAddress = document.getString("locationAddress"),
+                    city = document.getString("city"),
+                    state = document.getString("state")
+                )
             } catch (e: Exception) {
-                Log.w("getAllPlans", "Error convirtiendo documento ${document.id}: ${e.message}")
+                Log.e("getPlanes", "Error parsing plan document ${document.id}", e)
                 null
             }
         }
     } catch (e: Exception) {
-        Log.e("getAllPlans", "Error obteniendo planes: ${e.message}", e)
-        emptyList()
+        Log.e("getPlanes", "Error fetching plans", e)
+        throw e
     }
 }
 

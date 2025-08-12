@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.santiago.sindesparches.presentation.location_settings.LocationSettingsScreen
 import com.santiago.sindesparches.presentation.verificacion.VerificacionCorreoScreen
 import kotlinx.coroutines.delay
 
@@ -175,9 +176,11 @@ fun Navegacion(
                 }
             )
         }
-
+// ✅ NAVEGACIÓN HOME ACTUALIZADA
         composable("home") {
-            homeScreen(auth = auth, db,
+            homeScreen(
+                auth = auth,
+                db = db,
                 navigateToInicial = {
                     navController.navigate("inicio") {
                         popUpTo("home") { inclusive = true }
@@ -214,10 +217,24 @@ fun Navegacion(
                 },
                 navigateToComments = { planId ->
                     navController.navigate("comments/$planId")
+                },
+                // ✅ NUEVA NAVEGACIÓN PARA CONFIGURAR UBICACIÓN
+                navigateToLocationSettings = {
+                    navController.navigate("location_settings")
                 }
             )
         }
 
+
+        composable("location_settings") {
+            LocationSettingsScreen(
+                navController = navController,
+                onLocationSelected = { location ->
+                    // Opcional: hacer algo adicional cuando se seleccione ubicación
+                    Log.d("Navigation", "Ubicación seleccionada: ${location.displayName}")
+                }
+            )
+        }
         composable("flash_plan") {
             flash_plan(auth = auth, db,
                 navigateToHome = {
@@ -289,15 +306,19 @@ fun Navegacion(
                 }
             )
         }
-
         composable("publicaciones") {
-            publicacion_screen(auth = auth, db,
+            publicacion_screen(
+                auth = auth,
+                db = db,
                 navController = navController,
                 navigateToHome = {
                     navController.navigate("home")
                 },
                 navigateToMapPicker = {
-                    navController.navigate("map_picker")
+                    navController.navigate("map_picker") {
+                        launchSingleTop = true
+                        // No usar popUpTo aquí para preservar el back stack
+                    }
                 }
             )
         }
@@ -311,22 +332,36 @@ fun Navegacion(
         composable(
             route = "editplanscreen/{planId}",
             arguments = listOf(
-                navArgument("planId") { type = NavType.StringType }
+                navArgument("planId") {
+                    type = NavType.StringType
+                    nullable = false
+                    defaultValue = ""
+                }
             )
         ) { backStackEntry ->
-            val planId = backStackEntry.arguments?.getString("planId") ?: ""
+            val planId = backStackEntry.arguments?.getString("planId")
+
             PublicacionScreen(
                 auth = auth,
                 db = db,
                 navigateToHome = {
                     navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
+                        popUpTo("home") {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 },
-                planId = planId
+                planId = if (planId.isNullOrBlank()) null else planId,
+                navigateToMapPicker = {
+                    navController.navigate("map_picker") {
+                        launchSingleTop = true
+                        // No usar popUpTo aquí para preservar el back stack
+                    }
+                },
+                navController = navController
             )
         }
-
 
         composable(
             route = "plan_detail/{planId}",
