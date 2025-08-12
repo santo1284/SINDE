@@ -1273,7 +1273,7 @@ fun homeScreen(
                 .offset(x = leftMenuOffset)
                 .width(150.dp)
                 .fillMaxHeight()
-                .background(boton)
+                .background(Color.Transparent)
                 .padding(top = 60.dp)
                 .padding(start = 16.dp)
                 .zIndex(2f)
