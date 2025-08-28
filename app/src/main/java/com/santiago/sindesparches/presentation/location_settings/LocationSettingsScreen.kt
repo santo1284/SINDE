@@ -62,7 +62,6 @@ data class LocationSuggestion(
     val state: String,
     val country: String
 )
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationSettingsScreen(
@@ -80,12 +79,62 @@ fun LocationSettingsScreen(
     var currentUserLocation by remember { mutableStateOf<LocationSuggestion?>(null) }
     var showPermissionDialog by remember { mutableStateOf(false) }
 
+    // NUEVO: Estado para controlar la pantalla de carga al seleccionar ubicación
+    var isSavingLocation by remember { mutableStateOf(false) }
+    var selectedLocationName by remember { mutableStateOf("") }
+
     // Colors
     val vibrantPink = Color(0xFFEC4899)
     val electricBlue = Color(0xFF06B6D4)
     val nightBackground = Color(0xFF0A0E27)
     val cardBackground = Color(0xFF1A1D3A)
-    // Function to detect current location
+
+    // Function to save location to Firestore - MODIFICADA
+    fun saveLocationToFirestore(location: LocationSuggestion) {
+        if (isSavingLocation) return // Prevenir múltiples clics
+
+        isSavingLocation = true
+        selectedLocationName = location.displayName
+
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId == null) {
+            Toast.makeText(context, "Error: Usuario no encontrado", Toast.LENGTH_SHORT).show()
+            isSavingLocation = false
+            return
+        }
+
+        val db = FirebaseFirestore.getInstance()
+
+        val locationData = mapOf(
+            "city" to location.city,
+            "state" to location.state,
+            "country" to location.country,
+            "displayName" to location.displayName,
+            "fullAddress" to location.fullAddress,
+            "latitude" to location.latitude,
+            "longitude" to location.longitude,
+            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+        )
+
+        db.collection("perfil").document(userId)
+            .update("location", locationData)
+            .addOnSuccessListener {
+                // Simular un pequeño delay para mostrar la animación
+                coroutineScope.launch {
+                    kotlinx.coroutines.delay(1500) // 1.5 segundos de animación
+                    Toast.makeText(context, "¡Ubicación guardada exitosamente!", Toast.LENGTH_SHORT).show()
+                    onLocationSelected(location)
+                    navController.popBackStack()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("LocationSettings", "Error guardando ubicación", e)
+                Toast.makeText(context, "Error guardando ubicación", Toast.LENGTH_SHORT).show()
+                isSavingLocation = false
+            }
+    }
+
+    // Function to detect current location - MODIFICADA para manejar el estado de carga
     fun detectCurrentLocation() {
         isDetectingLocation = true
         val fusedLocationClient: FusedLocationProviderClient =
@@ -137,8 +186,7 @@ fun LocationSettingsScreen(
                                                 fullAddress = address.getAddressLine(0) ?: "",
                                                 latitude = location.latitude,
                                                 longitude = location.longitude,
-                                                city = address.locality ?: address.subAdminArea
-                                                ?: "",
+                                                city = address.locality ?: address.subAdminArea ?: "",
                                                 state = address.adminArea ?: "",
                                                 country = address.countryName ?: ""
                                             )
@@ -160,11 +208,7 @@ fun LocationSettingsScreen(
                                         }
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(
-                                        "LocationSettings",
-                                        "Error obteniendo ubicación actual",
-                                        e
-                                    )
+                                    Log.e("LocationSettings", "Error obteniendo ubicación actual", e)
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(
                                             context,
@@ -186,8 +230,7 @@ fun LocationSettingsScreen(
                     }
                     .addOnFailureListener { e ->
                         Log.e("LocationSettings", "Error obteniendo ubicación", e)
-                        Toast.makeText(context, "Error obteniendo ubicación", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(context, "Error obteniendo ubicación", Toast.LENGTH_SHORT).show()
                         isDetectingLocation = false
                     }
             }
@@ -211,7 +254,7 @@ fun LocationSettingsScreen(
         }
     }
 
-    // Function to search locations
+    // Function to search locations - Sin cambios significativos
     fun searchLocations() {
         if (searchText.isBlank()) return
 
@@ -278,34 +321,79 @@ fun LocationSettingsScreen(
         }
     }
 
-    // Function to save location to Firestore
-    fun saveLocationToFirestore(location: LocationSuggestion) {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        val db = FirebaseFirestore.getInstance()
+    // NUEVO: Overlay de carga cuando se está guardando la ubicación
+    if (isSavingLocation) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f))
+                .clickable(enabled = false) { }, // Bloquea interacciones
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .width(280.dp)
+                    .padding(24.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBackground),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Círculo con gradiente para la animación
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(40.dp))
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(vibrantPink, electricBlue),
+                                    radius = 120f
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            color = Color.White,
+                            strokeWidth = 4.dp
+                        )
+                    }
 
-        val locationData = mapOf(
-            "city" to location.city,
-            "state" to location.state,
-            "country" to location.country,
-            "displayName" to location.displayName,
-            "fullAddress" to location.fullAddress,
-            "latitude" to location.latitude,
-            "longitude" to location.longitude,
-            "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-        )
+                    Spacer(modifier = Modifier.height(24.dp))
 
-        db.collection("perfil").document(userId)
-            .update("location", locationData)
-            .addOnSuccessListener {
-                Toast.makeText(context, "Ubicación guardada exitosamente", Toast.LENGTH_SHORT)
-                    .show()
-                onLocationSelected(location)
-                navController.popBackStack()
+                    Text(
+                        text = "¡Configurando tu ubicación!",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Guardando $selectedLocationName...",
+                        color = electricBlue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Por favor espera un momento",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
-            .addOnFailureListener { e ->
-                Log.e("LocationSettings", "Error guardando ubicación", e)
-                Toast.makeText(context, "Error guardando ubicación", Toast.LENGTH_SHORT).show()
-            }
+        }
     }
 
     Scaffold(
@@ -319,11 +407,18 @@ fun LocationSettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            if (!isSavingLocation) { // Solo permitir navegación si no se está guardando
+                                navController.popBackStack()
+                            }
+                        },
+                        enabled = !isSavingLocation // Deshabilitar botón durante la carga
+                    ) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "Volver",
-                            tint = Color.White
+                            tint = if (isSavingLocation) Color.Gray else Color.White
                         )
                     }
                 },
@@ -343,7 +438,7 @@ fun LocationSettingsScreen(
             // Instruction text
             Text(
                 text = "Selecciona tu ciudad para ver eventos cercanos a ti",
-                color = Color.White.copy(alpha = 0.8f),
+                color = Color.White.copy(alpha = if (isSavingLocation) 0.5f else 0.8f),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -351,37 +446,41 @@ fun LocationSettingsScreen(
                     .padding(bottom = 24.dp)
             )
 
-            // Search field
+            // Search field - MODIFICADO para deshabilitar durante la carga
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = cardBackground),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isSavingLocation) cardBackground.copy(alpha = 0.5f) else cardBackground
+                ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = {
-                        searchText = it
-                        if (it.isNotEmpty()) {
-                            suggestions = emptyList() // Clear suggestions when typing
+                        if (!isSavingLocation) { // Solo permitir cambios si no se está guardando
+                            searchText = it
+                            if (it.isNotEmpty()) {
+                                suggestions = emptyList()
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
                             "Buscar ciudad (ej. Bogotá, Medellín...)",
-                            color = Color.Gray
+                            color = if (isSavingLocation) Color.Gray.copy(alpha = 0.5f) else Color.Gray
                         )
                     },
                     leadingIcon = {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "Buscar",
-                            tint = electricBlue
+                            tint = if (isSavingLocation) electricBlue.copy(alpha = 0.5f) else electricBlue
                         )
                     },
                     trailingIcon = {
                         Row {
-                            if (searchText.isNotEmpty()) {
+                            if (searchText.isNotEmpty() && !isSavingLocation) {
                                 IconButton(onClick = {
                                     searchText = ""
                                     suggestions = emptyList()
@@ -395,24 +494,29 @@ fun LocationSettingsScreen(
                             }
                         }
                     },
+                    enabled = !isSavingLocation, // Deshabilitar durante la carga
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { searchLocations() }),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        if (!isSavingLocation) searchLocations()
+                    }),
                     colors = TextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
+                        unfocusedTextColor = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
                         cursorColor = electricBlue,
                         focusedIndicatorColor = electricBlue,
                         unfocusedIndicatorColor = Color.Gray,
                         focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledTextColor = Color.White.copy(alpha = 0.5f),
+                        disabledIndicatorColor = Color.Gray.copy(alpha = 0.5f)
                     )
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action buttons
+            // Action buttons - MODIFICADOS para deshabilitar durante la carga
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -421,7 +525,7 @@ fun LocationSettingsScreen(
                 Button(
                     onClick = { searchLocations() },
                     modifier = Modifier.weight(1f),
-                    enabled = searchText.isNotEmpty() && !isSearching,
+                    enabled = searchText.isNotEmpty() && !isSearching && !isSavingLocation,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = electricBlue,
                         disabledContainerColor = Color.Gray
@@ -464,7 +568,7 @@ fun LocationSettingsScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isDetectingLocation,
+                    enabled = !isDetectingLocation && !isSavingLocation,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = vibrantPink,
                         disabledContainerColor = Color.Gray
@@ -490,13 +594,17 @@ fun LocationSettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Current location display
+            // Current location display - MODIFICADO para manejar el estado de carga
             currentUserLocation?.let { location ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { saveLocationToFirestore(location) },
-                    colors = CardDefaults.cardColors(containerColor = cardBackground),
+                        .clickable(enabled = !isSavingLocation) {
+                            saveLocationToFirestore(location)
+                        },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSavingLocation) cardBackground.copy(alpha = 0.5f) else cardBackground
+                    ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Row(
@@ -508,32 +616,32 @@ fun LocationSettingsScreen(
                         Icon(
                             Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = vibrantPink,
+                            tint = if (isSavingLocation) vibrantPink.copy(alpha = 0.5f) else vibrantPink,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Tu ubicación actual",
-                                color = vibrantPink,
+                                color = if (isSavingLocation) vibrantPink.copy(alpha = 0.5f) else vibrantPink,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = location.displayName,
-                                color = Color.White,
+                                color = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = location.fullAddress,
-                                color = Color.Gray,
+                                color = if (isSavingLocation) Color.Gray.copy(alpha = 0.5f) else Color.Gray,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                         Text(
-                            text = "Seleccionar",
-                            color = electricBlue,
+                            text = if (isSavingLocation) "Guardando..." else "Seleccionar",
+                            color = if (isSavingLocation) electricBlue.copy(alpha = 0.5f) else electricBlue,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -543,11 +651,11 @@ fun LocationSettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Suggestions list
+            // Suggestions list - MODIFICADO para manejar el estado de carga
             if (suggestions.isNotEmpty()) {
                 Text(
                     text = "Resultados de búsqueda:",
-                    color = Color.White,
+                    color = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -560,8 +668,12 @@ fun LocationSettingsScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { saveLocationToFirestore(suggestion) },
-                            colors = CardDefaults.cardColors(containerColor = cardBackground),
+                                .clickable(enabled = !isSavingLocation) {
+                                    saveLocationToFirestore(suggestion)
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSavingLocation) cardBackground.copy(alpha = 0.5f) else cardBackground
+                            ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
                             Row(
@@ -573,20 +685,20 @@ fun LocationSettingsScreen(
                                 Icon(
                                     Icons.Default.LocationOn,
                                     contentDescription = null,
-                                    tint = electricBlue,
+                                    tint = if (isSavingLocation) electricBlue.copy(alpha = 0.5f) else electricBlue,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = suggestion.displayName,
-                                        color = Color.White,
+                                        color = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
                                         text = suggestion.fullAddress,
-                                        color = Color.Gray,
+                                        color = if (isSavingLocation) Color.Gray.copy(alpha = 0.5f) else Color.Gray,
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -596,13 +708,15 @@ fun LocationSettingsScreen(
                 }
             }
 
-            // Empty state
+            // Empty state - Sin cambios significativos en funcionalidad
             if (searchText.isNotEmpty() && suggestions.isEmpty() && !isSearching) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 32.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardBackground)
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSavingLocation) cardBackground.copy(alpha = 0.5f) else cardBackground
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -613,19 +727,19 @@ fun LocationSettingsScreen(
                         Icon(
                             Icons.Default.LocationOn,
                             contentDescription = null,
-                            tint = Color.Gray,
+                            tint = if (isSavingLocation) Color.Gray.copy(alpha = 0.5f) else Color.Gray,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "No se encontraron ciudades",
-                            color = Color.White,
+                            color = if (isSavingLocation) Color.White.copy(alpha = 0.5f) else Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Intenta con otro término de búsqueda",
-                            color = Color.Gray,
+                            color = if (isSavingLocation) Color.Gray.copy(alpha = 0.5f) else Color.Gray,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center
                         )
@@ -635,5 +749,3 @@ fun LocationSettingsScreen(
         }
     }
 }
-
-

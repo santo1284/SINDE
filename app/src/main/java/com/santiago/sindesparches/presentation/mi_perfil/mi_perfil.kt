@@ -5,6 +5,10 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.EaseOutBack
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,14 +40,23 @@ import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.window.Dialog
@@ -85,6 +98,214 @@ data class FlashPlan(
     val imageUrl: String? = null,
     val fechaCreacion: Any? = null
 )
+
+// Componente del overlay de carga moderno
+@Composable
+fun LoadingOverlay(
+    isVisible: Boolean,
+    message: String = "Guardando cambios...",
+    modifier: Modifier = Modifier
+) {
+    // Animaciones para el overlay
+    val overlayAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(300, easing = EaseInOut),
+        label = "overlayAlpha"
+    )
+
+    val scaleAnimation by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.8f,
+        animationSpec = tween(400, easing = EaseOutBack),
+        label = "scaleAnimation"
+    )
+
+    // Animación infinita para el gradiente rotativo
+    var infiniteTransition = rememberInfiniteTransition(label = "infiniteTransition")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotationAngle"
+    )
+
+    // Animación de pulsación para el círculo interno
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = EaseInOut),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
+    // Colores del gradiente
+    val primaryPurple = Color(0xFF8B5CF6)
+    val primaryBlue = Color(0xFF3B82F6)
+    val accentPink = Color(0xFFEC4899)
+    val accentOrange = Color(0xFFF97316)
+
+    if (overlayAlpha > 0f) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .alpha(overlayAlpha)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.85f),
+                            Color.Black.copy(alpha = 0.95f)
+                        ),
+                        radius = 1000f
+                    )
+                )
+                .pointerInput(Unit) {
+                    // Bloquea todos los toques
+                    detectTapGestures { /* No hacer nada */ }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            // Efectos de fondo animados
+            Canvas(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                val center = Offset(size.width / 2, size.height / 2)
+
+                // Círculos animados de fondo
+                drawCircle(
+                    color = primaryPurple.copy(alpha = 0.1f * overlayAlpha),
+                    radius = 300f * pulseScale,
+                    center = center
+                )
+
+                drawCircle(
+                    color = accentPink.copy(alpha = 0.08f * overlayAlpha),
+                    radius = 200f * (2f - pulseScale),
+                    center = center
+                )
+
+                drawCircle(
+                    color = primaryBlue.copy(alpha = 0.06f * overlayAlpha),
+                    radius = 400f * pulseScale,
+                    center = center
+                )
+            }
+
+            // Contenedor principal del loader
+            Card(
+                modifier = Modifier
+                    .scale(scaleAnimation)
+                    .padding(32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1E1E3F).copy(alpha = 0.9f)
+                ),
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(40.dp)
+                ) {
+                    // Loader circular animado
+                    Box(
+                        modifier = Modifier.size(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Círculo exterior rotativo
+                        Canvas(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .rotate(rotationAngle)
+                        ) {
+                            val strokeWidth = 8.dp.toPx()
+                            val radius = (size.minDimension - strokeWidth) / 2
+
+                            drawArc(
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        primaryPurple,
+                                        accentPink,
+                                        accentOrange,
+                                        primaryBlue,
+                                        primaryPurple
+                                    )
+                                ),
+                                startAngle = 0f,
+                                sweepAngle = 280f,
+                                useCenter = false,
+                                style = Stroke(
+                                    width = strokeWidth,
+                                    cap = StrokeCap.Round
+                                )
+                            )
+                        }
+
+                        // Círculo interno pulsante
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .scale(pulseScale * 0.7f)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            primaryPurple.copy(alpha = 0.3f),
+                                            primaryBlue.copy(alpha = 0.1f)
+                                        )
+                                    ),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Texto principal
+                    Text(
+                        text = message,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Texto secundario
+                    Text(
+                        text = "Por favor espera un momento...",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Barra de progreso animada
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = primaryPurple,
+                        trackColor = Color.White.copy(alpha = 0.1f)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun MiPerfilScreen(
@@ -129,7 +350,7 @@ fun MiPerfilScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // ✅ Función para recargar todos los datos
+    // Función para recargar todos los datos
     fun reloadAllData() {
         userId?.let { uid ->
             // Recargar FlashPlans
@@ -205,7 +426,7 @@ fun MiPerfilScreen(
         }
     }
 
-    // ✅ Función para manejar eliminación de plan con recarga automática
+    // Función para manejar eliminación de plan con recarga automática
     fun handlePlanDeleted(planId: String) {
         // Actualizar la lista local inmediatamente
         planes = planes.filter { it.id != planId }
@@ -341,7 +562,7 @@ fun MiPerfilScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // ✅ Header mejorado sin botón de recarga y mejor centrado
+                // Header mejorado sin botón de recarga y mejor centrado
                 item {
                     Box(
                         modifier = Modifier
@@ -379,7 +600,7 @@ fun MiPerfilScreen(
                                 )
                             }
 
-                            // ✅ Botones del header reorganizados
+                            // Botones del header reorganizados
                             Row(
                                 modifier = Modifier
                                     .padding(16.dp)
@@ -410,7 +631,7 @@ fun MiPerfilScreen(
                                     )
                                 }
 
-                                // ✅ Solo dos botones: editar y logout
+                                // Solo dos botones: editar y logout
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
@@ -818,6 +1039,7 @@ fun MiPerfilScreen(
 
                                     Spacer(modifier = Modifier.height(24.dp))
 
+                                    // ✅ Botón modificado con overlay de carga
                                     Button(
                                         onClick = {
                                             if (editNombre.isBlank()) {
@@ -825,7 +1047,7 @@ fun MiPerfilScreen(
                                                 return@Button
                                             }
 
-                                            isSaving = true
+                                            isSaving = true // ✅ Activar overlay
                                             userId?.let { uid ->
                                                 val updatedData = hashMapOf(
                                                     "nombre" to editNombre.trim(),
@@ -849,17 +1071,17 @@ fun MiPerfilScreen(
                                                             uploadImageToFirebase(uri, uid) { url ->
                                                                 profileImageUrl = url
                                                                 imageUri = null
-                                                                isSaving = false
+                                                                isSaving = false // ✅ Desactivar overlay
                                                                 isEditing = false
                                                             }
                                                         } ?: run {
-                                                            isSaving = false
+                                                            isSaving = false // ✅ Desactivar overlay
                                                             isEditing = false
                                                         }
                                                     }
                                                     .addOnFailureListener { e ->
                                                         Log.e("MiPerfil", "Error actualizando perfil", e)
-                                                        isSaving = false
+                                                        isSaving = false // ✅ Desactivar overlay en caso de error
                                                     }
                                             }
                                         },
@@ -868,7 +1090,7 @@ fun MiPerfilScreen(
                                             containerColor = primaryPurple
                                         ),
                                         shape = RoundedCornerShape(12.dp),
-                                        enabled = !isSaving
+                                        enabled = !isSaving // ✅ Deshabilitar botón mientras carga
                                     ) {
                                         if (isSaving) {
                                             CircularProgressIndicator(
@@ -963,9 +1185,9 @@ fun MiPerfilScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // ✅ Contenido dinámico según la tab seleccionada
+                // Contenido dinámico según la tab seleccionada
                 if (selectedTab == 0) {
-                    // ✅ FlashPlans en grid de 2 columnas
+                    // FlashPlans en grid de 2 columnas
                     if (flashPlans.isEmpty()) {
                         item {
                             EmptyStateCard("No has publicado FlashPlans aún", "¡Crea tu primer FlashPlan!")
@@ -993,7 +1215,7 @@ fun MiPerfilScreen(
                         }
                     }
                 } else {
-                    // ✅ Tab de Planes con recarga automática
+                    // Tab de Planes con recarga automática
                     if (planes.isEmpty()) {
                         item {
                             EmptyStateCard("No has publicado planes aún", "¡Crea tu primer plan!")
@@ -1012,7 +1234,7 @@ fun MiPerfilScreen(
                                 navigateToEditPlan = navigateToEditPlan,
                                 navigateToMiPerfil = navigateToMiPerfil,
                                 navigateToComments = navigateToComments,
-                                // ✅ Callback de eliminación con recarga automática
+                                // Callback de eliminación con recarga automática
                                 onPlanDeleted = { planId ->
                                     handlePlanDeleted(planId)
                                 }
@@ -1129,6 +1351,12 @@ fun MiPerfilScreen(
                 shape = RoundedCornerShape(16.dp)
             )
         }
+
+        // ✅ OVERLAY DE CARGA MODERNO
+        LoadingOverlay(
+            isVisible = isSaving,
+            message = "Actualizando perfil..."
+        )
     }
 }
 

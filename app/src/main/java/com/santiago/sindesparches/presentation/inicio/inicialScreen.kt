@@ -105,7 +105,8 @@ fun InicialScreen(
     navigateToLoging: () -> Unit = {},
     navigatehome: () -> Unit = {},
     navigatePerfil: () -> Unit = {},
-    navigateToVerificacionCorreo: (String, String) -> Unit = { _, _ -> }
+    navigateToVerificacionCorreo: (String, String) -> Unit = { _, _ -> },
+    navigateToDefinirContrasena: (String) -> Unit = {}
 ) {
     var exitDialog by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
@@ -157,6 +158,7 @@ fun InicialScreen(
     val cardBackground = Color(0xFF2D2D2D)
 
     // Función para procesar el usuario después de la autenticación
+    // Función para procesar el usuario después de la autenticación
     fun processUserAfterAuth(user: FirebaseUser?) {
         // Verificar si el usuario es nulo
         if (user == null) {
@@ -165,8 +167,13 @@ fun InicialScreen(
             return
         }
 
-        // NUEVA VALIDACIÓN: Verificar si el email está verificado
-        if (!user.isEmailVerified) {
+        // Verificar si el usuario se autenticó con proveedores externos (Facebook/Google)
+        val isExternalProvider = user.providerData.any { providerInfo ->
+            providerInfo.providerId == "facebook.com" || providerInfo.providerId == "google.com"
+        }
+
+        // Solo verificar email para usuarios que se registraron con email/contraseña
+        if (!isExternalProvider && !user.isEmailVerified) {
             Log.d("Authentication", "Email no verificado para usuario: ${user.email}")
 
             // Obtener información del usuario para la pantalla de verificación
@@ -197,10 +204,11 @@ fun InicialScreen(
         val uid = user.uid
         val userEmail = user.email ?: ""
 
-        // 1. Verificar si tiene contraseña
+        // 1. Verificar si tiene contraseña (solo para usuarios de email/contraseña)
         val tieneContraseña = user.providerData.any { it.providerId == "password" }
 
-        if (!tieneContraseña) {
+        // Para usuarios externos (Facebook/Google), no necesitan definir contraseña
+        if (!isExternalProvider && !tieneContraseña) {
             Log.d("Authentication", "Usuario sin contraseña. Redirigiendo a DefinirContraseña")
             isLoading = false
             navigateToDefinirContrasena(userEmail)

@@ -1,5 +1,6 @@
 package com.santiago.sindesparches.presentation.home
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.Log
@@ -43,6 +44,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Query
 import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -923,7 +925,7 @@ fun homeScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f) // Toma el espacio disponible
-                                    .padding(horizontal = 16.dp) // Espaciado lateral
+                                    .padding(horizontal = 10.dp) // Espaciado lateral
                                     .heightIn(min = 48.dp), // Altura mínima consistente
                                 singleLine = true,
                                 colors = TextFieldDefaults.colors(
@@ -980,7 +982,7 @@ fun homeScreen(
                                     FloatingActionButton(
                                         onClick = navigateToPublicaciones,
                                         modifier = Modifier
-                                            .size(48.dp)
+                                            .size(45.dp)
                                             .background(
                                                 brush = Brush.linearGradient(
                                                     colors = listOf(
@@ -1724,14 +1726,15 @@ fun homeScreen(
 
         // Diálogo salir
         if (showDialog) {
+            val activity = LocalActivity.current
+
             AlertDialog(
                 onDismissRequest = { showDialog = false },
-                title = { Text("¿Cerrar sesión?") },
+                title = { Text("¿Salir de la aplicación?") },
                 text = { Text("¿Estás seguro de que quieres salir?") },
                 confirmButton = {
                     Button(onClick = {
-                        auth.signOut()
-                        navigateToInicial()
+                        activity?.finishAffinity() // 👈 Cierra la app
                     }) {
                         Text("Sí, salir")
                     }

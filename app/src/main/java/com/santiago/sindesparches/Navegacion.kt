@@ -126,7 +126,9 @@ fun Navegacion(
             }, navigateToLoging = { navController.navigate("loging") },
                 navigateToVerificacionCorreo = { email, usuario ->
                     navController.navigate("verificacion/$email/$usuario")
-                })
+                },
+                navigateToDefinirContrasena = { email ->
+                    navController.navigate("definir_contrasena/$email")})
         }
 
         composable("definir_contrasena/{email}") { backStackEntry ->
