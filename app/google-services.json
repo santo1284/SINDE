@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "1022521936843-8vddmftlbqirq2644sp2sf6f7k8p1f9o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.santiago.sindesparches",
+            "certificate_hash": "7c5daff40b6d873ca6ec5d89a98db88429741a52"
+          }
+        },
+        {
+          "client_id": "1022521936843-j4jse6tra119attc86c7kde4jgd05ogn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.santiago.sindesparches",
+            "certificate_hash": "2eaf32ef340bef4659c7e6ab04bf0d826af05c39"
+          }
+        },
+        {
           "client_id": "1022521936843-vkfuniooch6ndkpvdc52apjs9ve752c3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

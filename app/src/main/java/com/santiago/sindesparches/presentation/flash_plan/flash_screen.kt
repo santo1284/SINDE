@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.unit.Dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -97,7 +99,9 @@ fun obtenerNombreUsuario(onNombreObtenido: (String?) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> Unit) {
+fun flash_plan(auth: FirebaseAuth,
+               db: FirebaseFirestore,
+               navigateToHome: () -> Unit) {
 
     // Estados
     var showExitDialog by remember { mutableStateOf(false) }
@@ -111,6 +115,44 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+
+    // Configuración responsiva
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val screenWidth = configuration.screenWidthDp.dp
+    val isSmallScreen = screenHeight < 700.dp
+    val isVerySmallScreen = screenHeight < 600.dp
+
+    // Tamaños adaptativos
+    val cardSize = when {
+        isVerySmallScreen -> (screenWidth * 0.6f).coerceAtMost(200.dp)
+        isSmallScreen -> (screenWidth * 0.7f).coerceAtMost(240.dp)
+        else -> (screenWidth * 0.75f).coerceAtMost(280.dp)
+    }
+
+    val imageSize = cardSize * 0.7f
+    val topPadding = when {
+        isVerySmallScreen -> 80.dp
+        isSmallScreen -> 90.dp
+        else -> 110.dp
+    }
+
+    val titleSize = when {
+        isVerySmallScreen -> 22.sp
+        isSmallScreen -> 24.sp
+        else -> 28.sp
+    }
+
+    val subtitleSize = when {
+        isVerySmallScreen -> 14.sp
+        isSmallScreen -> 15.sp
+        else -> 16.sp
+    }
+
+    val buttonHeight = if (isSmallScreen) 48.dp else 56.dp
+    val iconSize = if (isSmallScreen) 20.dp else 24.dp
+    val circleSize = if (isSmallScreen) 60.dp else 80.dp
+    val circleIconSize = if (isSmallScreen) 30.dp else 40.dp
 
     // Traer nombre de firebase
     var nombre by remember { mutableStateOf<String?>(null) }
@@ -204,7 +246,7 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                 showSuccessDialog = true
             }
 
-            return downloadUrl
+            downloadUrl // Retorna directamente, sin 'return'
         } catch (e: Exception) {
             errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
@@ -212,8 +254,9 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                 e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
                     "No tienes permisos para guardar el FlashPlan."
                 e is StorageException -> {
-                    val code = (e as StorageException).errorCode
-                    val httpCode = (e as StorageException).httpResultCode
+                    // Removido el cast innecesario
+                    val code = e.errorCode
+                    val httpCode = e.httpResultCode
                     val detailedMessage = e.message ?: "Sin detalles"
                     Log.e("StorageException", "Código: $code, HTTP: $httpCode, Mensaje: $detailedMessage")
                     "Error en Firebase Storage ($httpCode): $detailedMessage"
@@ -224,7 +267,7 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
             withContext(Dispatchers.Main) {
                 showErrorDialog = true
             }
-            return null
+            null // Retorna null en caso de error
         }
     }
 
@@ -239,7 +282,7 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
         )
     )
 
-    // UI Principal
+    // UI Principal con scroll
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -253,28 +296,29 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                 )
             )
     ) {
-        // Fondo con efectos
+        // Fondo con efectos adaptativos
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            NightTheme.Primary.copy(alpha = 0.1f),
+                            NightTheme.Primary.copy(alpha = 0.08f),
                             Color.Transparent
                         ),
-                        radius = 800f
+                        radius = if (isSmallScreen) 400f else 800f
                     )
                 )
         )
 
-        // Header
+        // Header responsivo
         TopAppBar(
             title = {
                 Text(
                     text = "Crear FlashPlan",
                     color = NightTheme.OnSurface,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (isSmallScreen) 18.sp else 20.sp
                 )
             },
             navigationIcon = {
@@ -282,7 +326,8 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Volver",
-                        tint = NightTheme.OnSurface
+                        tint = NightTheme.OnSurface,
+                        modifier = Modifier.size(iconSize)
                     )
                 }
             },
@@ -292,44 +337,48 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
             modifier = Modifier.zIndex(1f)
         )
 
-        // Contenido principal
+        // Contenido principal scrolleable
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .padding(top = 110.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = if (isSmallScreen) 16.dp else 24.dp)
+                .padding(top = topPadding, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Título y subtítulo
+            // Título y subtítulo adaptativos
             Text(
                 text = "Comparte tu momento",
-                fontSize = 28.sp,
+                fontSize = titleSize,
                 fontWeight = FontWeight.Bold,
                 color = NightTheme.OnSurface,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(if (isSmallScreen) 6.dp else 8.dp))
 
             Text(
                 text = "Selecciona una imagen para tu FlashPlan",
-                fontSize = 16.sp,
+                fontSize = subtitleSize,
                 color = NightTheme.OnSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
+                lineHeight = if (isSmallScreen) 20.sp else 22.sp,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(if (isSmallScreen) 24.dp else 40.dp))
 
-            // Área de imagen
+            // Área de imagen responsiva
             Card(
                 modifier = Modifier
-                    .size(280.dp)
-                    .clip(RoundedCornerShape(20.dp)),
+                    .size(cardSize)
+                    .clip(RoundedCornerShape(if (isSmallScreen) 16.dp else 20.dp)),
                 colors = CardDefaults.cardColors(
                     containerColor = NightTheme.Surface
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = if (isSmallScreen) 6.dp else 8.dp
+                )
             ) {
                 Box(
                     modifier = Modifier
@@ -346,33 +395,38 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                 ) {
                     when {
                         isLoading -> {
-                            LoadingContent()
+                            LoadingContent(isSmallScreen = isSmallScreen)
                         }
                         imageUrl != null -> {
-                            SuccessContent(imageUrl = imageUrl!!)
+                            SuccessContent(imageUrl = imageUrl!!, imageSize = imageSize, isSmallScreen = isSmallScreen)
                         }
                         imageUri != null -> {
-                            SelectedImageContent(imageUri = imageUri!!, context = context)
+                            SelectedImageContent(imageUri = imageUri!!, context = context, imageSize = imageSize, isSmallScreen = isSmallScreen)
                         }
                         else -> {
                             EmptyStateContent(
                                 glowAlpha = glowAlpha,
-                                onClick = { galleryLauncher.launch("image/*") }
+                                onClick = { galleryLauncher.launch("image/*") },
+                                circleSize = circleSize,
+                                iconSize = circleIconSize,
+                                isSmallScreen = isSmallScreen
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(if (isSmallScreen) 24.dp else 40.dp))
 
-            // Botones
+            // Botones adaptativos
             AnimatedVisibility(
                 visible = true,
                 enter = fadeIn() + slideInVertically()
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isSmallScreen) 8.dp else 0.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Botón seleccionar imagen
@@ -380,22 +434,25 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                         onClick = { galleryLauncher.launch("image/*") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(buttonHeight),
                         colors = ButtonDefaults.elevatedButtonColors(
                             containerColor = NightTheme.Primary,
                             contentColor = Color.White
                         ),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(if (isSmallScreen) 12.dp else 16.dp),
+                        elevation = ButtonDefaults.elevatedButtonColors().let {
+                            ButtonDefaults.elevatedButtonElevation(defaultElevation = 4.dp)
+                        }
                     ) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(iconSize)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(if (isSmallScreen) 8.dp else 12.dp))
                         Text(
                             text = "Seleccionar Imagen",
-                            fontSize = 16.sp,
+                            fontSize = if (isSmallScreen) 14.sp else 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -407,7 +464,7 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                         exit = slideOutVertically() + fadeOut()
                     ) {
                         Column {
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(if (isSmallScreen) 12.dp else 16.dp))
 
                             ElevatedButton(
                                 onClick = {
@@ -419,36 +476,39 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(56.dp),
+                                    .height(buttonHeight),
                                 enabled = !isLoading,
                                 colors = ButtonDefaults.elevatedButtonColors(
                                     containerColor = NightTheme.Secondary,
                                     contentColor = Color.Black
                                 ),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(if (isSmallScreen) 12.dp else 16.dp),
+                                elevation = ButtonDefaults.elevatedButtonColors().let {
+                                    ButtonDefaults.elevatedButtonElevation(defaultElevation = 4.dp)
+                                }
                             ) {
                                 if (isLoading) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(if (isSmallScreen) 16.dp else 20.dp),
                                         color = Color.Black,
                                         strokeWidth = 2.dp
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(if (isSmallScreen) 8.dp else 12.dp))
                                     Text(
                                         text = "Subiendo...",
-                                        fontSize = 16.sp,
+                                        fontSize = if (isSmallScreen) 14.sp else 16.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 } else {
                                     Icon(
                                         Icons.Default.KeyboardArrowUp,
                                         contentDescription = null,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(iconSize)
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(if (isSmallScreen) 8.dp else 12.dp))
                                     Text(
                                         text = "Subir FlashPlan",
-                                        fontSize = 16.sp,
+                                        fontSize = if (isSmallScreen) 14.sp else 16.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -469,7 +529,8 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                     showSuccessDialog = false
                     navigateToHome()
                 },
-                type = DialogType.Success
+                type = DialogType.Success,
+                isSmallScreen = isSmallScreen
             )
         }
 
@@ -479,7 +540,8 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                 message = errorMessage,
                 confirmText = "Entendido",
                 onConfirm = { showErrorDialog = false },
-                type = DialogType.Error
+                type = DialogType.Error,
+                isSmallScreen = isSmallScreen
             )
         }
 
@@ -494,34 +556,35 @@ fun flash_plan(auth: FirebaseAuth, db: FirebaseFirestore, navigateToHome: () -> 
                     navigateToHome()
                 },
                 onDismiss = { showExitDialog = false },
-                type = DialogType.Warning
+                type = DialogType.Warning,
+                isSmallScreen = isSmallScreen
             )
         }
     }
 }
 
 @Composable
-private fun LoadingContent() {
+private fun LoadingContent(isSmallScreen: Boolean) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(if (isSmallScreen) 36.dp else 48.dp),
             color = NightTheme.Primary,
-            strokeWidth = 4.dp
+            strokeWidth = if (isSmallScreen) 3.dp else 4.dp
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (isSmallScreen) 12.dp else 16.dp))
         Text(
             text = "Procesando imagen...",
             color = NightTheme.OnSurfaceVariant,
-            fontSize = 14.sp
+            fontSize = if (isSmallScreen) 12.sp else 14.sp
         )
     }
 }
 
 @Composable
-private fun SuccessContent(imageUrl: String) {
+private fun SuccessContent(imageUrl: String, imageSize: Dp, isSmallScreen: Boolean) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -530,22 +593,22 @@ private fun SuccessContent(imageUrl: String) {
             model = imageUrl,
             contentDescription = "FlashPlan creado",
             modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(16.dp)),
+                .size(imageSize)
+                .clip(RoundedCornerShape(if (isSmallScreen) 12.dp else 16.dp)),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (isSmallScreen) 12.dp else 16.dp))
         Text(
             text = "FlashPlan creado",
             color = NightTheme.Success,
-            fontSize = 14.sp,
+            fontSize = if (isSmallScreen) 12.sp else 14.sp,
             fontWeight = FontWeight.Medium
         )
     }
 }
 
 @Composable
-private fun SelectedImageContent(imageUri: Uri, context: android.content.Context) {
+private fun SelectedImageContent(imageUri: Uri, context: android.content.Context, imageSize: Dp, isSmallScreen: Boolean) {
     val bitmap = remember(imageUri) {
         context.contentResolver.openInputStream(imageUri)?.use {
             BitmapFactory.decodeStream(it)
@@ -557,21 +620,27 @@ private fun SelectedImageContent(imageUri: Uri, context: android.content.Context
             painter = BitmapPainter(bitmap.asImageBitmap()),
             contentDescription = "Imagen seleccionada",
             modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(16.dp)),
+                .size(imageSize)
+                .clip(RoundedCornerShape(if (isSmallScreen) 12.dp else 16.dp)),
             contentScale = ContentScale.Crop
         )
     } else {
         Text(
             text = "Error al cargar imagen",
             color = NightTheme.Error,
-            fontSize = 14.sp
+            fontSize = if (isSmallScreen) 12.sp else 14.sp
         )
     }
 }
 
 @Composable
-private fun EmptyStateContent(glowAlpha: Float, onClick: () -> Unit) {
+private fun EmptyStateContent(
+    glowAlpha: Float,
+    onClick: () -> Unit,
+    circleSize: Dp,
+    iconSize: Dp,
+    isSmallScreen: Boolean
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -580,11 +649,11 @@ private fun EmptyStateContent(glowAlpha: Float, onClick: () -> Unit) {
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) { onClick() }
-            .padding(20.dp)
+            .padding(if (isSmallScreen) 16.dp else 20.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(circleSize)
                 .background(
                     color = NightTheme.Primary.copy(alpha = glowAlpha),
                     shape = CircleShape
@@ -598,17 +667,17 @@ private fun EmptyStateContent(glowAlpha: Float, onClick: () -> Unit) {
             Icon(
                 Icons.Default.Add,
                 contentDescription = "Agregar imagen",
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(iconSize),
                 tint = Color.White
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (isSmallScreen) 12.dp else 16.dp))
         Text(
             text = "Toca para agregar\nuna imagen",
             color = NightTheme.OnSurfaceVariant,
-            fontSize = 14.sp,
+            fontSize = if (isSmallScreen) 12.sp else 14.sp,
             textAlign = TextAlign.Center,
-            lineHeight = 20.sp
+            lineHeight = if (isSmallScreen) 16.sp else 20.sp
         )
     }
 }
@@ -616,7 +685,6 @@ private fun EmptyStateContent(glowAlpha: Float, onClick: () -> Unit) {
 enum class DialogType {
     Success, Error, Warning
 }
-
 
 @Composable
 private fun ModernDialog(
@@ -626,7 +694,8 @@ private fun ModernDialog(
     dismissText: String? = null,
     onConfirm: () -> Unit,
     onDismiss: (() -> Unit)? = null,
-    type: DialogType
+    type: DialogType,
+    isSmallScreen: Boolean
 ) {
     val iconColor = when (type) {
         DialogType.Success -> NightTheme.Success
@@ -648,13 +717,14 @@ private fun ModernDialog(
                     },
                     contentDescription = null,
                     tint = iconColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(if (isSmallScreen) 20.dp else 24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = title,
                     color = NightTheme.OnSurface,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (isSmallScreen) 16.sp else 18.sp
                 )
             }
         },
@@ -662,7 +732,8 @@ private fun ModernDialog(
             Text(
                 text = message,
                 color = NightTheme.OnSurfaceVariant,
-                lineHeight = 22.sp
+                lineHeight = if (isSmallScreen) 18.sp else 22.sp,
+                fontSize = if (isSmallScreen) 14.sp else 16.sp
             )
         },
         confirmButton = {
@@ -674,7 +745,8 @@ private fun ModernDialog(
             ) {
                 Text(
                     text = confirmText,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = if (isSmallScreen) 14.sp else 16.sp
                 )
             }
         },
@@ -688,12 +760,13 @@ private fun ModernDialog(
                 ) {
                     Text(
                         text = text,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        fontSize = if (isSmallScreen) 14.sp else 16.sp
                     )
                 }
             }
         },
         containerColor = NightTheme.Surface,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(if (isSmallScreen) 12.dp else 16.dp)
     )
 }

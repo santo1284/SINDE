@@ -5,16 +5,12 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -50,12 +46,12 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,15 +61,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -82,12 +74,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.wear.compose.material.placeholder
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.santiago.sindesparches.R
 import com.santiago.sindesparches.presentation.mi_perfil.uploadImageToFirebase
 import com.santiago.sindesparches.ui.theme.Purple
@@ -113,17 +103,19 @@ fun PerfilScreen(
     navigate_registro_completo: (nombre: String) -> Unit = {},
     navigateToInicial: () -> Unit = {}
 ) {
-    // Colores modernos para eventos
-    val primaryBlue = Color(0xFF2196F3)
-    val aquaBlue = Color(0xFF00E5FF)
-    val neonYellow = Color(0x79FFEB3B)
-    val vibrantPurple = Color(0xFF9C27B0)
-    val hotPink = Color(0xFFFF1744)
-    val darkBackground = Color(0xFF0A0A0A)
-    val cardBackground = Color(0xFF1A1A1A)
-    val surfaceColor = Color(0xFF2D2D2D)
+    // Colores vibrantes pero equilibrados para app de eventos
+    val primaryColor = Color(0xFF6366F1) // Indigo vibrante
+    val accentColor = Color(0xFF06B6D4) // Cyan brillante
+    val secondaryAccent = Color(0xFFEC4899) // Rosa vibrante
+    val tertiaryAccent = Color(0xFFF59E0B) // Amarillo dorado
+    val errorColor = Color(0xFFEF4444)
+    val successColor = Color(0xFF10B981)
+    val darkBackground = Color(0xFF0F172A) // Azul muy oscuro
+    val cardBackground = Color(0xFF1E293B) // Azul grisáceo oscuro
+    val surfaceColor = Color(0xFF334155) // Gris azulado
+    val textSecondary = Color(0xFF94A3B8)
 
-    // Estados existentes
+    // Estados
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val user = FirebaseAuth.getInstance().currentUser
     val nombreUsuario = user?.displayName
@@ -145,6 +137,14 @@ fun PerfilScreen(
     var mostrarTerminos by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
 
+    // Verificar si todos los campos están completos
+    val todosLosCamposCompletos = imageUri != null &&
+            nombre.isNotEmpty() &&
+            celular.length == 10 &&
+            edad != null &&
+            selectedCiudad != "seleccionar ciudad" &&
+            terminosAceptados
+
     // Launcher para imágenes
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -157,7 +157,7 @@ fun PerfilScreen(
         showDialog = true
     }
 
-    // Diálogo de cierre de sesión moderno
+    // Diálogo de cierre de sesión
     if (showDialog) {
         Dialog(onDismissRequest = { showDialog = false }) {
             Card(
@@ -171,25 +171,12 @@ fun PerfilScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Icono de advertencia con gradiente
-                    Box(
-                        modifier = Modifier
-                            .size(70.dp)
-                            .background(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(hotPink, vibrantPurple)
-                                ),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Advertencia",
-                            tint = Color.White,
-                            modifier = Modifier.size(35.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Advertencia",
+                        tint = errorColor,
+                        modifier = Modifier.size(48.dp)
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -205,7 +192,7 @@ fun PerfilScreen(
                     Text(
                         text = "¿Estás seguro? Se eliminará tu usuario permanentemente",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = aquaBlue,
+                        color = textSecondary,
                         textAlign = TextAlign.Center
                     )
 
@@ -215,12 +202,8 @@ fun PerfilScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Button(
+                        TextButton(
                             onClick = { showDialog = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = surfaceColor
-                            ),
-                            shape = RoundedCornerShape(25.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("Cancelar", color = Color.White)
@@ -239,17 +222,10 @@ fun PerfilScreen(
                                 onLogout()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Transparent
+                                containerColor = errorColor
                             ),
-                            shape = RoundedCornerShape(25.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(hotPink, vibrantPurple)
-                                    ),
-                                    shape = RoundedCornerShape(25.dp)
-                                )
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text("Sí, salir", color = Color.White, fontWeight = FontWeight.Bold)
                         }
@@ -259,7 +235,7 @@ fun PerfilScreen(
         }
     }
 
-    // Diálogo de términos moderno
+    // Diálogo de términos
     if (mostrarTerminos) {
         Dialog(onDismissRequest = { mostrarTerminos = false }) {
             Card(
@@ -274,7 +250,7 @@ fun PerfilScreen(
                     Text(
                         text = "Términos y Condiciones",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = neonYellow,
+                        color = primaryColor,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
@@ -307,34 +283,22 @@ fun PerfilScreen(
                             .fillMaxWidth()
                             .height(48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
+                            containerColor = primaryColor
                         ),
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(aquaBlue, primaryBlue)
-                                    ),
-                                    shape = RoundedCornerShape(24.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Entendido",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(
+                            "Entendido",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
         }
     }
 
-    // Pantalla principal con diseño moderno
+    // Pantalla principal con mejor distribución
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -348,113 +312,75 @@ fun PerfilScreen(
                 )
             )
     ) {
-        // Elementos decorativos de fondo
-        Canvas(
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(top = 10.dp)
         ) {
-            // Círculos decorativos
-            drawCircle(
-                color = aquaBlue.copy(alpha = 0.1f),
-                radius = 150f,
-                center = Offset(size.width * 0.8f, size.height * 0.2f)
-            )
-            drawCircle(
-                color = hotPink.copy(alpha = 0.1f),
-                radius = 100f,
-                center = Offset(size.width * 0.2f, size.height * 0.7f)
-            )
-            drawCircle(
-                color = neonYellow.copy(alpha = 0.1f),
-                radius = 80f,
-                center = Offset(size.width * 0.9f, size.height * 0.8f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(36.dp))
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(top = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            // Header moderno
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                )
-                {
-                    // Botón de retroceso moderno
-                    Button(
-                        onClick = { showDialog = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = boton
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Retroceder",
-                            tint = Color.White,
-                            modifier = Modifier.size(34.dp),
-
-                        )
-                    }
-
-                    // Título con efecto neón
-                    Text(
-                        text = "MI PERFIL",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 28.sp,
-                            shadow = Shadow(
-                                color = aquaBlue,
-                                offset = Offset(0f, 0f),
-                                blurRadius = 10f
-                            )
-                        ),
-                        color = Color.White
+            // Header compacto
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { showDialog = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Retroceder",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
                     )
-
-                    // Spacer para balance
-                    Spacer(modifier = Modifier.size(56.dp))
                 }
+
+                Text(
+                    text = "MI PERFIL",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.size(48.dp))
             }
 
-            // Foto de perfil moderna
-            item {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Foto de perfil con borde degradado
+            Box(
+                modifier = Modifier
+                    .size(130.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .background(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                primaryColor,
+                                accentColor,
+                                secondaryAccent,
+                                tertiaryAccent,
+                                primaryColor
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .padding(3.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Card(
                     modifier = Modifier
-                        .size(180.dp)
-                        .padding(16.dp),
+                        .fillMaxSize()
+                        .clickable { launcher.launch("image/*") },
                     shape = CircleShape,
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.Transparent
+                        containerColor = cardBackground
                     )
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.sweepGradient(
-                                    colors = listOf(
-                                        aquaBlue,
-                                        neonYellow,
-                                        hotPink,
-                                        vibrantPurple,
-                                        aquaBlue
-                                    )
-                                ),
-                                shape = CircleShape
-                            )
-                            .padding(4.dp)
-                            .background(
-                                color = cardBackground,
-                                shape = CircleShape
-                            )
-                            .clickable { launcher.launch("image/*") },
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         if (imageUri != null) {
@@ -473,14 +399,14 @@ fun PerfilScreen(
                                 Icon(
                                     imageVector = Icons.Default.AccountCircle,
                                     contentDescription = "Agregar foto",
-                                    tint = white,
+                                    tint = accentColor,
                                     modifier = Modifier.size(48.dp)
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Añadir foto",
-                                    color = white,
-                                    fontWeight = FontWeight.Bold
+                                    color = textSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -488,242 +414,269 @@ fun PerfilScreen(
                 }
             }
 
-            // Campos de formulario modernos
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                ModernTextField(
-                    value = nombre,
-                    onValueChange = { nombre = it },
-                    label = "Nombre",
-                    placeholder = "Tu nombre aquí",
-                    leadingIcon = Icons.Default.Person,
-                    gradientColors = listOf(aquaBlue, primaryBlue)
+            // Campos de formulario con colores vibrantes
+            ModernTextField(
+                value = nombre,
+                onValueChange = { nombre = it },
+                label = "Nombre",
+                placeholder = "Tu nombre aquí" ,
+                leadingIcon = Icons.Default.Person,
+                accentColor = primaryColor,
+
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModernTextField(
+                value = celular,
+                onValueChange = { celular = it },
+                label = "Celular",
+                placeholder = "Tu número de celular",
+                leadingIcon = Icons.Default.Phone,
+                keyboardType = KeyboardType.Phone,
+                accentColor = secondaryAccent
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Dropdowns en fila para ahorrar espacio
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ModernEdadDropdown(
+                    selectedEdad = edad,
+                    onEdadSelected = { edad = it },
+                    modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                ModernTextField(
-                    value = celular,
-                    onValueChange = { celular = it },
-                    label = "Celular",
-                    placeholder = "Tu número de celular",
-                    leadingIcon = Icons.Default.Phone,
-                    gradientColors = listOf(hotPink, vibrantPurple),
-                    keyboardType = KeyboardType.Phone
+                ModernCiudadDropdown(
+                    selectedCiudad = selectedCiudad,
+                    onCiudadSelected = { selectedCiudad = it },
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Dropdowns modernos
-            item {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Términos y condiciones con estilo vibrante
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = cardBackground
+                )
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    ModernEdadDropdown(
-                        selectedEdad = edad,
-                        onEdadSelected = { edad = it },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    ModernCiudadDropdown(
-                        selectedCiudad = selectedCiudad,
-                        onCiudadSelected = { selectedCiudad = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // Términos y condiciones modernos
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = cardBackground.copy(alpha = 0.8f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = terminosAceptados,
-                            onCheckedChange = { terminosAceptados = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = neonYellow,
-                                uncheckedColor = Color.Gray
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    primaryColor.copy(alpha = 0.1f),
+                                    accentColor.copy(alpha = 0.1f)
+                                )
                             )
                         )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Column(
-                            modifier = Modifier.clickable { mostrarTerminos = true }
-                        ) {
-                            Text(
-                                text = "Acepto los términos y condiciones",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Toca aquí para leer términos completos",
-                                color = aquaBlue,
-                                fontSize = 12.sp,
-                                fontStyle = FontStyle.Italic
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Mensaje de error
-            item {
-                if (mensaje.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (mensaje.contains("Error") || mensaje.contains("Debes"))
-                                Color.Red.copy(alpha = 0.2f)
-                            else
-                                Color.Green.copy(alpha = 0.2f)
+                        .padding(16.dp)
+                        .clickable { mostrarTerminos = true },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = terminosAceptados,
+                        onCheckedChange = { terminosAceptados = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = tertiaryAccent,
+                            uncheckedColor = textSecondary,
+                            checkmarkColor = Color.Black
                         )
+                    )
+
+                    Column(
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = mensaje,
-                            color = if (mensaje.contains("Error") || mensaje.contains("Debes"))
-                                Color.Red
-                            else
-                                Color.Green,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(16.dp),
-                            textAlign = TextAlign.Center
+                            text = "Acepto los términos y condiciones",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Toca para leer términos completos",
+                            color = accentColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
 
-            // Botón de guardar épico
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Button(
-                    onClick = {
-                        // Validaciones existentes
-                        if (!terminosAceptados) {
-                            mensaje = "Debes aceptar los términos y condiciones"
-                            return@Button
-                        }
-
-                        if (imageUri == null) {
-                            mensaje = "Por favor selecciona una imagen"
-                            return@Button
-                        }
-
-                        if (nombre.isEmpty()) {
-                            mensaje = "Por favor ingresa un nombre"
-                            return@Button
-                        }
-
-                        if (celular.isEmpty()) {
-                            mensaje = "Por favor ingresa un número de celular"
-                            return@Button
-                        }
-
-                        if (celular.length != 10) {
-                            mensaje = "Por favor ingresa un número de celular válido"
-                            return@Button
-                        }
-
-                        if (edad == null) {
-                            mensaje = "Por favor selecciona una edad"
-                            return@Button
-                        }
-
-                        if (selectedCiudad == "seleccionar ciudad") {
-                            mensaje = "Por favor selecciona una ciudad"
-                            return@Button
-                        }
-
-                        // Procesar datos
-                        imageUri?.let { uri ->
-                            userId?.let { uid ->
-                                uploadImageToFirebase(uri, uid) { url ->
-                                    imageUrl = url
-                                }
-                            }
-                        }
-
-                        guardarPerfilEnFirestore(
-                            userId, nombre, celular, edad!!, selectedCiudad, terminosAceptados
-                        ) { success ->
-                            if (success) {
-                                mensaje = "¡Perfil guardado! ¡Listo para la diversión!"
-                                navigate_registro_completo(nombre)
-                            } else {
-                                mensaje = "Error al guardar el perfil"
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(horizontal = 16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(30.dp),
-                    enabled = nombre.isNotEmpty()
+            // Mensaje de error/éxito
+            if (mensaje.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (mensaje.contains("Error") || mensaje.contains("Debes"))
+                            errorColor.copy(alpha = 0.2f)
+                        else
+                            successColor.copy(alpha = 0.2f)
+                    )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(boton_texto, shape = RoundedCornerShape(30.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = black,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "GUARDAR Y EMPEZAR A DISFRUTAR",
-                                color = black,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp
-                            )
+                    Text(
+                        text = mensaje,
+                        color = if (mensaje.contains("Error") || mensaje.contains("Debes"))
+                            errorColor
+                        else
+                            successColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón dinámico con estados visuales atractivos
+            Button(
+                onClick = {
+                    // Validaciones
+                    if (!terminosAceptados) {
+                        mensaje = "Debes aceptar los términos y condiciones"
+                        return@Button
+                    }
+
+                    if (imageUri == null) {
+                        mensaje = "Por favor selecciona una imagen"
+                        return@Button
+                    }
+
+                    if (nombre.isEmpty()) {
+                        mensaje = "Por favor ingresa un nombre"
+                        return@Button
+                    }
+
+                    if (celular.isEmpty()) {
+                        mensaje = "Por favor ingresa un número de celular"
+                        return@Button
+                    }
+
+                    if (celular.length != 10) {
+                        mensaje = "Por favor ingresa un número de celular válido"
+                        return@Button
+                    }
+
+                    if (edad == null) {
+                        mensaje = "Por favor selecciona una edad"
+                        return@Button
+                    }
+
+                    if (selectedCiudad == "seleccionar ciudad") {
+                        mensaje = "Por favor selecciona una ciudad"
+                        return@Button
+                    }
+
+                    // Procesar datos
+                    imageUri?.let { uri ->
+                        userId?.let { uid ->
+                            uploadImageToFirebase(uri, uid) { url ->
+                                imageUrl = url
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                    guardarPerfilEnFirestore(
+                        userId, nombre, celular, edad!!, selectedCiudad, terminosAceptados
+                    ) { success ->
+                        if (success) {
+                            mensaje = "¡Perfil guardado exitosamente!"
+                            navigate_registro_completo(nombre)
+                        } else {
+                            mensaje = "Error al guardar el perfil"
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = if (todosLosCamposCompletos) {
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        successColor,
+                                        Color(0xFF059669), // Verde más intenso
+                                        accentColor
+                                    )
+                                )
+                            } else {
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        surfaceColor,
+                                        surfaceColor.copy(alpha = 0.8f)
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (todosLosCamposCompletos) {
+                            // Icono animado cuando está listo
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(
+                                        Color.White.copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+                        Text(
+                            text = if (todosLosCamposCompletos)
+                                "¡COMENZAR AVENTURA!"
+                            else
+                                "COMPLETA TUS DATOS",
+                            color = if (todosLosCamposCompletos) Color.White else textSecondary,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 16.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
-// Componente de TextField moderno
+// TextField moderno con colores personalizables
 @Composable
 fun ModernTextField(
     value: String,
@@ -731,63 +684,64 @@ fun ModernTextField(
     label: String,
     placeholder: String,
     leadingIcon: ImageVector,
-    gradientColors: List<Color>,
+    accentColor: Color,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xA62D2D2D)
+    val textSecondary = Color(0xFF94A3B8)
+    val cardBackground = Color(0xFF1E293B)
+
+    Column {
+        Text(
+            text = label,
+            color = accentColor,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = label,
-                color = gradientColors[0],
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = cardBackground
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+        ) {
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
                 placeholder = {
                     Text(
                         text = placeholder,
-                        color = Color.Gray
+                        color = textSecondary
                     )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
-                        tint = gradientColors[0]
+                        tint = if (value.isNotEmpty()) accentColor else textSecondary
                     )
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = gradientColors[0],
-                    unfocusedBorderColor = Color.Gray,
+                    focusedBorderColor = accentColor,
+                    unfocusedBorderColor = Color.Transparent,
+                    cursorColor = accentColor,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
                     focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = gradientColors[0]
+                    unfocusedTextColor = Color.Gray,
+
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
 }
 
-// Dropdown moderno para edad
+// Dropdown de edad compacto
 @Composable
 fun ModernEdadDropdown(
     selectedEdad: Int?,
@@ -795,44 +749,33 @@ fun ModernEdadDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val primaryColor = Color(0xFF3F51B5)
+    val textSecondary = Color(0xFFB0B0B0)
 
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2D2D2D)
+    Column(modifier = modifier) {
+        Text(
+            text = "Edad",
+            color = primaryColor,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Edad",
-                color = Color(0xFFFF6B35),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A2A2A)
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+        ) {
             Button(
                 onClick = { expanded = true },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent
                 ),
-                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFFFF6B35).copy(alpha = 0.2f),
-                                Color(0xFFE91E63).copy(alpha = 0.2f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    .height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -840,14 +783,14 @@ fun ModernEdadDropdown(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = selectedEdad?.toString() ?: "Seleccionar",
-                        color = if (selectedEdad != null) Color.White else Color.Gray,
-                        fontWeight = FontWeight.Bold
+                        text = selectedEdad?.toString() ?: "Edad",
+                        color = if (selectedEdad != null) Color.White else textSecondary,
+                        fontWeight = FontWeight.Medium
                     )
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color(0xFFFF6B35)
+                        tint = primaryColor
                     )
                 }
             }
@@ -856,7 +799,7 @@ fun ModernEdadDropdown(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
                 modifier = Modifier
-                    .background(Color(0xFF2D2D2D))
+                    .background(Color(0xFF2A2A2A))
                     .heightIn(max = 200.dp)
             ) {
                 (15..60).forEach { edad ->
@@ -878,7 +821,7 @@ fun ModernEdadDropdown(
     }
 }
 
-// Dropdown moderno para ciudad
+// Dropdown de ciudad compacto
 @Composable
 fun ModernCiudadDropdown(
     selectedCiudad: String,
@@ -887,44 +830,33 @@ fun ModernCiudadDropdown(
 ) {
     val ciudades = listOf("Garzon", "Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena")
     var expanded by remember { mutableStateOf(false) }
+    val primaryColor = Color(0xFF3F51B5)
+    val textSecondary = Color(0xFFB0B0B0)
 
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2D2D2D)
+    Column(modifier = modifier) {
+        Text(
+            text = "Ciudad",
+            color = primaryColor,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Ciudad",
-                color = Color(0xFF00E5FF),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF2A2A2A)
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+        ) {
             Button(
                 onClick = { expanded = true },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent
                 ),
-                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFF00E5FF).copy(alpha = 0.2f),
-                                Color(0xFF2196F3).copy(alpha = 0.2f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    .height(56.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -932,15 +864,15 @@ fun ModernCiudadDropdown(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (selectedCiudad == "seleccionar ciudad") "Seleccionar" else selectedCiudad,
-                        color = if (selectedCiudad == "seleccionar ciudad") Color.Gray else Color.White,
-                        fontWeight = FontWeight.Bold,
+                        text = if (selectedCiudad == "seleccionar ciudad") "Ciudad" else selectedCiudad,
+                        color = if (selectedCiudad == "seleccionar ciudad") textSecondary else Color.White,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 14.sp
                     )
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color(0xFF00E5FF)
+                        tint = primaryColor
                     )
                 }
             }
@@ -948,7 +880,7 @@ fun ModernCiudadDropdown(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Color(0xFF2D2D2D))
+                modifier = Modifier.background(Color(0xFF2A2A2A))
             ) {
                 ciudades.forEach { ciudad ->
                     DropdownMenuItem(
@@ -968,7 +900,8 @@ fun ModernCiudadDropdown(
         }
     }
 }
-// Función actualizada para guardar el perfil con términos y condiciones
+
+// Función para guardar perfil (sin cambios)
 fun guardarPerfilEnFirestore(
     userId: String?,
     nombre: String,
@@ -1005,5 +938,3 @@ fun guardarPerfilEnFirestore(
             onResult(false)
         }
 }
-
-

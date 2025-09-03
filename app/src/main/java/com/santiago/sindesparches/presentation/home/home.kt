@@ -279,13 +279,17 @@ fun homeScreen(
         userLng: Double?,
         radiusKm: Double = 50.0
     ): List<Plan> {
+        // ✅ Si el radio es "sin límite" (999999.0), mostrar todos los planes
+        if (radiusKm >= 999999.0) {
+            return allPlanes
+        }
+
         if (userLat == null || userLng == null) {
             return allPlanes // Si no hay ubicación del usuario, mostrar todos
         }
 
         return allPlanes.filter { plan ->
             try {
-                // ✅ CAMBIO: tu Plan ya tiene latitude y longitude como Double?
                 val planLat = plan.latitude
                 val planLng = plan.longitude
 
@@ -310,7 +314,7 @@ fun homeScreen(
         userLat: Double?,
         userLng: Double?
     ): List<Plan> {
-        // Primero filtrar por ubicación
+        // Primero filtrar por ubicación (ahora maneja correctamente "sin límite")
         val locationFiltered = filterPlanesByLocation(allPlanes, userLat, userLng, locationFilterRadius)
 
         // Luego filtrar por búsqueda
@@ -366,7 +370,7 @@ fun homeScreen(
     }
 
     // ✅ ACTUALIZAR PLANES CUANDO CAMBIE LA UBICACIÓN O BÚSQUEDA
-    LaunchedEffect(searchText, userLocation, allPlanes) {
+    LaunchedEffect(searchText, userLocation, allPlanes, locationFilterRadius) { // 👈 Agregué locationFilterRadius
         planes = applyAllFilters(
             allPlanes,
             searchText,
@@ -895,7 +899,7 @@ fun homeScreen(
                         .background(black)
                         .alpha(if (showLeftMenu || showRightMenu) 0.3f else 1f)
                 ) {
-                    // ✅ HEADER ACTUALIZADO CON UBICACIÓN
+                    // ✅ HEADER ACTUALIZADO CON UBICACIÓN Y PLACEHOLDER DINÁMICO
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
@@ -918,10 +922,22 @@ fun homeScreen(
                                 value = searchText,
                                 onValueChange = { searchText = it },
                                 placeholder = {
-                                    Text(
-                                        "Buscar",
-                                        color = Color.Gray
-                                    )
+                                    // ✨ PLACEHOLDER DINÁMICO - Solo aparece cuando el botón NO es visible con delay
+                                    AnimatedVisibility(
+                                        visible = !isButtonVisible,
+                                        enter = fadeIn(
+                                            animationSpec = tween(
+                                                durationMillis = 300,
+                                                delayMillis = 500 // Espera 0.5 segundos antes de aparecer
+                                            )
+                                        ),
+                                        exit = fadeOut(animationSpec = tween(300))
+                                    ) {
+                                        Text(
+                                            "Buscar",
+                                            color = Color.Gray
+                                        )
+                                    }
                                 },
                                 modifier = Modifier
                                     .weight(1f) // Toma el espacio disponible
@@ -1035,8 +1051,6 @@ fun homeScreen(
                                 }
                             }
                         }
-
-
                     }
 
                     // ✅ Mostrar contador de resultados actualizado
